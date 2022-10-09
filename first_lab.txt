@@ -1,1 +1,2 @@
 show run
+interface ethernet 1/1
