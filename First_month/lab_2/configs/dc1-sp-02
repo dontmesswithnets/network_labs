@@ -1,12 +1,12 @@
-dc1-sp-01# show running-config
+dc1-sp-02(config)# show running-config
 
 !Command: show running-config
-!Running configuration last done at: Mon Oct 31 01:53:27 2022
-!Time: Mon Oct 31 03:49:17 2022
+!Running configuration last done at: Mon Oct 31 03:44:25 2022
+!Time: Mon Oct 31 03:59:28 2022
 
 version 9.3(3) Bios:version
-hostname dc1-sp-01
-vdc dc1-sp-01 id 1
+hostname dc1-sp-02
+vdc dc1-sp-02 id 1
   limit-resource vlan minimum 16 maximum 4094
   limit-resource vrf minimum 2 maximum 4096
   limit-resource port-channel minimum 0 maximum 511
@@ -18,11 +18,12 @@ vdc dc1-sp-01 id 1
 feature ospf
 
 no password strength-check
-username admin password 5 $5$FfxV5Pko$djCTvsUt0evnhKHj1VcLy99YHES5Haok6GT4Z3e4W2
-A  role network-admin
+username admin password 5 $5$2WQh6u1u$TtNr/pLPPXhxU6gH2yfHYsPa3J5gayTo/UTuYezmB.
+6  role network-admin
 ip domain-lookup
-snmp-server user admin network-admin auth md5 0x0977e5e19868d21cb2ce288fde8cf80f
- priv 0x0977e5e19868d21cb2ce288fde8cf80f localizedkey
+copp profile strict
+snmp-server user admin network-admin auth md5 0x2d649f2b84745b42f077823b648accbf
+ priv 0x2d649f2b84745b42f077823b648accbf localizedkey
 rmon event 1 description FATAL(1) owner PMON@FATAL
 rmon event 2 description CRITICAL(2) owner PMON@CRITICAL
 rmon event 3 description ERROR(3) owner PMON@ERROR
@@ -34,28 +35,28 @@ vlan 1
 vrf context management
 
 interface Ethernet1/1
-  description dc1-lf-01 Eth1/6
+  description dc1-lf-01 Eth1/7
   no switchport
   no ip redirects
-  ip address 169.254.0.0/31
+  ip address 169.254.0.6/31
   no ip ospf passive-interface
   ip router ospf Underlay area 0.0.0.0
   no shutdown
 
 interface Ethernet1/2
-  description dc1-lf-02 Eth1/6
+  description dc1-lf-02 Eth1/7
   no switchport
   no ip redirects
-  ip address 169.254.0.2/31
+  ip address 169.254.0.8/31
   no ip ospf passive-interface
   ip router ospf Underlay area 0.0.0.0
   no shutdown
 
 interface Ethernet1/3
-  description dc1-lf-03 Eth1/6
+  description dc1-lf-03 Eth1/7
   no switchport
   no ip redirects
-  ip address 169.254.0.4/31
+  ip address 169.254.0.10/31
   no ip ospf passive-interface
   ip router ospf Underlay area 0.0.0.0
   no shutdown
@@ -186,13 +187,12 @@ interface mgmt0
   vrf member management
 
 interface loopback0
-  ip address 10.1.0.1/32
+  ip address 10.1.0.2/32
   ip router ospf Underlay area 0.0.0.0
 line console
 line vty
 boot nxos bootflash:/nxos.9.3.3.bin sup-1
 router ospf Underlay
-  router-id 10.1.0.1
+  router-id 10.1.0.2
   log-adjacency-changes
   passive-interface default
-
