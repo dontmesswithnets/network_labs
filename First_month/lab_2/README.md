@@ -81,7 +81,7 @@ round-trip min/avg/max = 2.171/4.195/11.236 ms
 ```
 
 ___Теперь нужно настроить IP связность между всеми Underlay устройствами с помощью протокола OSPF___
-* _Включаем функцию OSPF на NXOS, создаем OSPF instance и назнаем Router-id_ (пример для dc1-sp-01)
+* _Включаем функцию OSPF на NXOS, создаем OSPF instance и назначаем Router-id_ (пример для dc1-sp-01)
 ```
 feature ospf
 router ospf Underlay
