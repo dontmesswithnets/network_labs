@@ -153,4 +153,6 @@ round-trip min/avg/max = 4.826/8.599/16.037 ms
 ```
 _Как видим, между всеми **Underlay** устройствами появилась IP связность благодаря настроенному протоколу **OSPF**_
 
+_Топология_ **Underlay** _с указанием адресации на устройствах_ (включая loopback) ![image](topology.JPG)
+
 _Полные конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/First_month/lab_2/configs)_
