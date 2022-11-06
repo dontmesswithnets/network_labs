@@ -158,4 +158,4 @@ _Как видим, между всеми **Underlay** устройствами 
 
 _Топология_ **Underlay** _с указанием адресации на устройствах_ (включая loopback) ![image](topology.JPG)
 
-_Полные конфиги устройств лежат [здесь](congigs)
+_Полные конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Second_month/lab_1/configs)
