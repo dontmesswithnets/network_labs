@@ -1,34 +1,9 @@
+
 dc1-sp-02# sh run
 
 !Command: show running-config
-!Running configuration last done at: Sat Nov 26 14:32:42 2022
-!Time: Sat Nov 26 15:46:04 2022
-
-version 9.3(3) Bios:version
-hostname dc1-sp-02
-vdc dc1-sp-02 id 1
-  limit-resource vlan minimum 16 maximum 4094
-  limit-resource vrf minimum 2 maximum 4096
-  limit-resource port-channel minimum 0 maximum 511
-  limit-resource u4route-mem minimum 248 maximum 248
-  limit-resource u6route-mem minimum 96 maximum 96
-  limit-resource m4route-mem minimum 58 maximum 58
-  limit-resource m6route-mem minimum 8 maximum 8
-
-feature bgp
-
-no password strength-check
-username admin password 5 $5$AHJFAE$rGf.G/54Z8/A8cbHSEkOc017K9U.vlG0SIPM4q0uQh/
- role network-admin
-ip domain-lookup
-copp profile strict
-dc1-sp-02#
-dc1-sp-02#
-dc1-sp-02# sh run
-
-!Command: show running-config
-!Running configuration last done at: Sat Nov 26 14:32:42 2022
-!Time: Sat Nov 26 15:55:34 2022
+!Running configuration last done at: Wed Nov 30 19:08:04 2022
+!Time: Wed Nov 30 19:40:43 2022
 
 version 9.3(3) Bios:version
 hostname dc1-sp-02
@@ -217,7 +192,7 @@ cli alias name wrmem copy run start
 line console
 line vty
 boot nxos bootflash:/nxos.9.3.3.bin sup-1
-router bgp 64502
+router bgp 64501
   router-id 10.1.0.2
   address-family ipv4 unicast
     network 10.1.0.2/32
@@ -226,12 +201,14 @@ router bgp 64502
     remote-as 64503
     description dc1-lf-01
     address-family ipv4 unicast
+      default-originate
   neighbor 169.254.0.9
     remote-as 64504
     description dc1-lf-02
     address-family ipv4 unicast
+      default-originate
   neighbor 169.254.0.11
     remote-as 64505
     description dc1-lf-03
     address-family ipv4 unicast
-
+      default-originate

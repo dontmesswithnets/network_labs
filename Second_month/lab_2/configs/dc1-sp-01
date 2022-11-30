@@ -1,8 +1,9 @@
+
 dc1-sp-01# sh run
 
 !Command: show running-config
-!Running configuration last done at: Sat Nov 26 14:30:33 2022
-!Time: Sat Nov 26 15:48:46 2022
+!Running configuration last done at: Wed Nov 30 19:07:03 2022
+!Time: Wed Nov 30 19:40:19 2022
 
 version 9.3(3) Bios:version
 hostname dc1-sp-01
@@ -200,14 +201,14 @@ router bgp 64501
     remote-as 64503
     description dc1-lf-01
     address-family ipv4 unicast
+      default-originate
   neighbor 169.254.0.3
     remote-as 64504
     description dc1-lf-02
     address-family ipv4 unicast
+      default-originate
   neighbor 169.254.0.5
     remote-as 64505
     description dc1-lf-03
     address-family ipv4 unicast
-
-
-
+      default-originate

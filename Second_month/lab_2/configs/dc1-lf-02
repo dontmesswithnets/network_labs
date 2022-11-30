@@ -1,8 +1,9 @@
+
 dc1-lf-02# sh run
 
 !Command: show running-config
-!Running configuration last done at: Sat Nov 26 14:34:55 2022
-!Time: Sat Nov 26 15:59:54 2022
+!Running configuration last done at: Wed Nov 30 18:26:41 2022
+!Time: Wed Nov 30 19:44:06 2022
 
 version 9.3(3) Bios:version
 hostname dc1-lf-02
@@ -195,7 +196,6 @@ router bgp 64504
     description dc1-sp-01
     address-family ipv4 unicast
   neighbor 169.254.0.8
-    remote-as 64502
+    remote-as 64501
     description dc1-sp-02
     address-family ipv4 unicast
-

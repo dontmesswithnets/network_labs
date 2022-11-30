@@ -483,4 +483,304 @@ est2
 
 ### __Таким образом мы обеспечили динамическое распространение маршрутной информации в пределах нашего вымышленного ЦОД посредством протокола BGP__
 
+<br/>
+<br/>
+
+# __UPDATE__
+
+### __Нужно привести все к другому виду, а именно:__
+
+* Все LEAF коммутаторы имеют уникальный ASN для передачи unicast префиксов
+* Все SPINE в рамках одного нашего ЦОДа имеют одинаковый ASN для предотвращения "неправильных маршрутов"
+* SPINE коммутаторы отдают default маршрут в сторону LEAF
+
+### __Вносим корректировки в конфигурацию BGP__
+
+* Конфигурация на dc1-sp-02 теперь выглядит так
+
+```
+router bgp 64501
+  router-id 10.1.0.2
+  address-family ipv4 unicast
+    network 10.1.0.2/32
+    redistribute direct route-map DIRECT
+  neighbor 169.254.0.7
+    remote-as 64503
+    description dc1-lf-01
+    address-family ipv4 unicast
+      default-originate
+  neighbor 169.254.0.9
+    remote-as 64504
+    description dc1-lf-02
+    address-family ipv4 unicast
+      default-originate
+  neighbor 169.254.0.11
+    remote-as 64505
+    description dc1-lf-03
+    address-family ipv4 unicast
+      default-originate
+```
+
+* На dc1-sp-01 также добавил в каждого соседа строчку
+
+```
+default-originate
+```
+
+__Теперь итоговая таблица маршрутизации BGP выглядит следующим образом__
+
+* На dc1-sp-01
+
+```
+dc1-sp-01# sh ip bgp
+BGP routing table information for VRF default, address family IPv4 Unicast
+BGP table version is 28, Local Router ID is 10.1.0.1
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+*>l10.1.0.1/32        0.0.0.0                           100      32768 i
+*>e10.2.0.1/32        169.254.0.1                                    0 64503 i
+*>e10.2.0.2/32        169.254.0.3                                    0 64504 i
+*>e10.2.0.3/32        169.254.0.5                                    0 64505 i
+*>r169.254.0.0/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.1              0                     0 64503 ?
+*>r169.254.0.2/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.3              0                     0 64504 ?
+*>r169.254.0.4/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.5              0                     0 64505 ?
+*>e169.254.0.6/31     169.254.0.1              0                     0 64503 ?
+*>e169.254.0.8/31     169.254.0.3              0                     0 64504 ?
+*>e169.254.0.10/31    169.254.0.5              0                     0 64505 ?
+
+dc1-sp-01# sh ip bgp summary
+BGP summary information for VRF default, address family IPv4 Unicast
+BGP router identifier 10.1.0.1, local AS number 64501
+BGP table version is 28, IPv4 Unicast config peers 3, capable peers 3
+10 network entries and 13 paths using 2760 bytes of memory
+BGP attribute entries [8/1344], BGP AS path entries [3/18]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+169.254.0.1     4 64503    6097    6092       28    0    0    4d05h 3
+169.254.0.3     4 64504    6111    6106       28    0    0    4d05h 3
+169.254.0.5     4 64505    6093    6089       28    0    0    4d05h 3
+```
+
+* На dc1-sp-02
+
+```
+dc1-sp-02# sh ip bgp
+BGP routing table information for VRF default, address family IPv4 Unicast
+BGP table version is 18, Local Router ID is 10.1.0.2
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+*>l10.1.0.2/32        0.0.0.0                           100      32768 i
+*>e10.2.0.1/32        169.254.0.7                                    0 64503 i
+*>e10.2.0.2/32        169.254.0.9                                    0 64504 i
+*>e10.2.0.3/32        169.254.0.11                                   0 64505 i
+*>e169.254.0.0/31     169.254.0.7              0                     0 64503 ?
+*>e169.254.0.2/31     169.254.0.9              0                     0 64504 ?
+*>e169.254.0.4/31     169.254.0.11             0                     0 64505 ?
+*>r169.254.0.6/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.7              0                     0 64503 ?
+*>r169.254.0.8/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.9              0                     0 64504 ?
+*>r169.254.0.10/31    0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.11             0                     0 64505 ?
+
+dc1-sp-02# sh ip bgp summary
+BGP summary information for VRF default, address family IPv4 Unicast
+BGP router identifier 10.1.0.2, local AS number 64501
+BGP table version is 18, IPv4 Unicast config peers 3, capable peers 3
+10 network entries and 13 paths using 2760 bytes of memory
+BGP attribute entries [8/1344], BGP AS path entries [3/18]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+169.254.0.7     4 64503      80      77       18    0    0 01:04:16 3
+169.254.0.9     4 64504      79      76       18    0    0 01:03:13 3
+169.254.0.11    4 64505      79      76       18    0    0 01:02:25 3
+```
+
+* На dc1-lf-01
+
+```
+dc1-lf-01# sh ip bgp
+BGP routing table information for VRF default, address family IPv4 Unicast
+BGP table version is 36, Local Router ID is 10.2.0.1
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+* e0.0.0.0/0          169.254.0.6                                    0 64501 i
+*>e                   169.254.0.0                                    0 64501 i
+*>e10.1.0.1/32        169.254.0.0                                    0 64501 i
+*>e10.1.0.2/32        169.254.0.6                                    0 64501 i
+*>l10.2.0.1/32        0.0.0.0                           100      32768 i
+* e10.2.0.2/32        169.254.0.6                                    0 64501 645
+04 i
+*>e                   169.254.0.0                                    0 64501 645
+04 i
+* e10.2.0.3/32        169.254.0.6                                    0 64501 645
+05 i
+*>e                   169.254.0.0                                    0 64501 645
+05 i
+* e169.254.0.0/31     169.254.0.0              0                     0 64501 ?
+*>r                   0.0.0.0                  0        100      32768 ?
+* e169.254.0.2/31     169.254.0.6                                    0 64501 645
+04 ?
+*>e                   169.254.0.0              0                     0 64501 ?
+* e169.254.0.4/31     169.254.0.6                                    0 64501 645
+05 ?
+*>e                   169.254.0.0              0                     0 64501 ?
+*>r169.254.0.6/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.6              0                     0 64501 ?
+*>e169.254.0.8/31     169.254.0.6              0                     0 64501 ?
+* e                   169.254.0.0                                    0 64501 645
+04 ?
+*>e169.254.0.10/31    169.254.0.6              0                     0 64501 ?
+* e                   169.254.0.0                                    0 64501 645
+05 ?
+
+dc1-lf-01# sh ip bgp summary
+BGP summary information for VRF default, address family IPv4 Unicast
+BGP router identifier 10.2.0.1, local AS number 64503
+BGP table version is 36, IPv4 Unicast config peers 2, capable peers 2
+12 network entries and 21 paths using 3960 bytes of memory
+BGP attribute entries [8/1344], BGP AS path entries [3/26]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+169.254.0.0     4 64501    6082    6074       36    0    0    4d05h 9
+169.254.0.6     4 64501      57      50       36    0    0 00:44:59 9
+```
+
+* На dc1-lf-02
+
+```
+dc1-lf-02# sh ip bgp
+BGP routing table information for VRF default, address family IPv4 Unicast
+BGP table version is 42, Local Router ID is 10.2.0.2
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+* e0.0.0.0/0          169.254.0.8                                    0 64501 i
+*>e                   169.254.0.2                                    0 64501 i
+*>e10.1.0.1/32        169.254.0.2                                    0 64501 i
+*>e10.1.0.2/32        169.254.0.8                                    0 64501 i
+* e10.2.0.1/32        169.254.0.8                                    0 64501 645
+03 i
+*>e                   169.254.0.2                                    0 64501 645
+03 i
+*>l10.2.0.2/32        0.0.0.0                           100      32768 i
+* e10.2.0.3/32        169.254.0.8                                    0 64501 645
+05 i
+*>e                   169.254.0.2                                    0 64501 645
+05 i
+* e169.254.0.0/31     169.254.0.8                                    0 64501 645
+03 ?
+*>e                   169.254.0.2              0                     0 64501 ?
+* e169.254.0.2/31     169.254.0.2              0                     0 64501 ?
+*>r                   0.0.0.0                  0        100      32768 ?
+* e169.254.0.4/31     169.254.0.8                                    0 64501 645
+05 ?
+*>e                   169.254.0.2              0                     0 64501 ?
+*>e169.254.0.6/31     169.254.0.8              0                     0 64501 ?
+* e                   169.254.0.2                                    0 64501 645
+03 ?
+*>r169.254.0.8/31     0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.8              0                     0 64501 ?
+*>e169.254.0.10/31    169.254.0.8              0                     0 64501 ?
+* e                   169.254.0.2                                    0 64501 645
+05 ?
+
+dc1-lf-02# sh ip bgp summary
+BGP summary information for VRF default, address family IPv4 Unicast
+BGP router identifier 10.2.0.2, local AS number 64504
+BGP table version is 42, IPv4 Unicast config peers 2, capable peers 2
+12 network entries and 21 paths using 3960 bytes of memory
+BGP attribute entries [8/1344], BGP AS path entries [3/26]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+169.254.0.2     4 64501    6097    6088       42    0    0    4d05h 9
+169.254.0.8     4 64501      56      50       42    0    0 00:44:01 9
+```
+
+* На dc1-lf-03
+
+```
+dc1-lf-03# sh ip bgp
+BGP routing table information for VRF default, address family IPv4 Unicast
+BGP table version is 42, Local Router ID is 10.2.0.3
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+* e0.0.0.0/0          169.254.0.10                                   0 64501 i
+*>e                   169.254.0.4                                    0 64501 i
+*>e10.1.0.1/32        169.254.0.4                                    0 64501 i
+*>e10.1.0.2/32        169.254.0.10                                   0 64501 i
+* e10.2.0.1/32        169.254.0.10                                   0 64501 645
+03 i
+*>e                   169.254.0.4                                    0 64501 645
+03 i
+* e10.2.0.2/32        169.254.0.10                                   0 64501 645
+04 i
+*>e                   169.254.0.4                                    0 64501 645
+04 i
+*>l10.2.0.3/32        0.0.0.0                           100      32768 i
+* e169.254.0.0/31     169.254.0.10                                   0 64501 645
+03 ?
+*>e                   169.254.0.4              0                     0 64501 ?
+* e169.254.0.2/31     169.254.0.10                                   0 64501 645
+04 ?
+*>e                   169.254.0.4              0                     0 64501 ?
+* e169.254.0.4/31     169.254.0.4              0                     0 64501 ?
+*>r                   0.0.0.0                  0        100      32768 ?
+*>e169.254.0.6/31     169.254.0.10             0                     0 64501 ?
+* e                   169.254.0.4                                    0 64501 645
+03 ?
+*>e169.254.0.8/31     169.254.0.10             0                     0 64501 ?
+* e                   169.254.0.4                                    0 64501 645
+04 ?
+*>r169.254.0.10/31    0.0.0.0                  0        100      32768 ?
+* e                   169.254.0.10             0                     0 64501 ?
+
+dc1-lf-03# sh ip bgp summary
+BGP summary information for VRF default, address family IPv4 Unicast
+BGP router identifier 10.2.0.3, local AS number 64505
+BGP table version is 42, IPv4 Unicast config peers 2, capable peers 2
+12 network entries and 21 paths using 3960 bytes of memory
+BGP attribute entries [8/1344], BGP AS path entries [3/26]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+169.254.0.4     4 64501    6082    6070       42    0    0    4d05h 9
+169.254.0.10    4 64501      55      49       42    0    0 00:43:18 9
+```
+
+### __Теперь в нашем ЦОД маршруты распространяются как положено, а связь между dc1-sp-01 и dc1-sp-02 не подразумевается в этой конкретной задаче__
+
+<br/>
+
 Все конфиги [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Second_month/lab_2/configs)
