@@ -523,4 +523,5 @@ EVPN instance: VLAN 20
   Encapsulation type: VXLAN
 ```
 <br/>
-_Все конфиги лежат здесь_
+
+Все конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_1/configs)
