@@ -524,4 +524,88 @@ EVPN instance: VLAN 20
 ```
 <br/>
 
+## UPDATE
+
+### Решил дополнить модель взаимодействия еще одним способом, а именно _Vlan-aware-bundle_
+
+*В этом случае нам не придется писать отдельную конфигурацию под каждый MAC-VRF. Вланы по прежнему будут примаплены каждый к своему VNI, однако, у них у всех будет общий MAC-VRF, а значит, route-distinguisher и route-target тоже будут общими. Здесь появляется в этот раз НЕ нулевое поле значения Ethernet tag ID, по нему собственно VTEP и будет понимать как их р*
+
+Для настройки необходимо:
+
+* удаляем ранее созданные MAC-VRF'ы на VTEP'ах
+
+```
+leaf-01(config)#router bgp 4200000021
+leaf-01(config-router-bgp)#no vlan 10
+leaf-01(config-router-bgp)#no vlan 20
+
+leaf-02(config)#router bgp 4200000022
+leaf-02(config-router-bgp)#no vlan 10
+leaf-02(config-router-bgp)#no vlan 20
+```
+
+* создаем один общий MAC-VRF, задаем RD, RT и вносим необходимые вланы
+
+```
+leaf-01(config-router-bgp)#vlan-aware-bundle BUNDLE
+leaf-01(config-macvrf-BUNDLE)#rd 1.1.1.2:1
+leaf-01(config-macvrf-BUNDLE)#route-target both 1:1
+leaf-01(config-macvrf-BUNDLE)#vlan 10, 20
+leaf-01(config-macvrf-BUNDLE)#redistribute learned
+
+leaf-02(config-router-bgp)#vlan-aware-bundle BUNDLE
+leaf-02(config-macvrf-BUNDLE)#rd 1.1.1.3:1
+leaf-02(config-macvrf-BUNDLE)#route-target both 1:1
+leaf-02(config-macvrf-BUNDLE)#vlan 10, 20
+leaf-02(config-macvrf-BUNDLE)#redistribute learned
+```
+
+* После этого проверим тип инстанса и связь между хостами
+
+```
+leaf-01#sh bgp evpn instance
+EVPN instance: VLAN-aware bundle BUNDLE
+  Route distinguisher: 1.1.1.2:1
+  Route target import: Route-Target-AS:1:1
+  Route target export: Route-Target-AS:1:1
+  Service interface: VLAN-aware bundle
+  Local IP address: 1.1.1.2
+  Encapsulation type: VXLAN
+
+leaf-02#sh bgp evpn instance
+EVPN instance: VLAN-aware bundle BUNDLE
+  Route distinguisher: 1.1.1.3:1
+  Route target import: Route-Target-AS:1:1
+  Route target export: Route-Target-AS:1:1
+  Service interface: VLAN-aware bundle
+  Local IP address: 1.1.1.3
+  Encapsulation type: VXLAN
+```
+
+* для спайна в такой конфигурации в настройках ничего менять не нужно
+
+```
+PC1 : 192.168.0.102 255.255.255.0 gateway 192.168.0.1
+
+VPCS> ping 192.168.0.103
+
+84 bytes from 192.168.0.103 icmp_seq=1 ttl=64 time=11.431 ms
+84 bytes from 192.168.0.103 icmp_seq=2 ttl=64 time=78.869 ms
+84 bytes from 192.168.0.103 icmp_seq=3 ttl=64 time=26.293 ms
+84 bytes from 192.168.0.103 icmp_seq=4 ttl=64 time=29.141 ms
+84 bytes from 192.168.0.103 icmp_seq=5 ttl=64 time=27.710 ms
+
+PC1 : 192.168.0.2 255.255.255.0 gateway 192.168.0.1
+
+VPCS> ping 192.168.0.3
+
+84 bytes from 192.168.0.3 icmp_seq=1 ttl=64 time=16.019 ms
+84 bytes from 192.168.0.3 icmp_seq=2 ttl=64 time=19.116 ms
+84 bytes from 192.168.0.3 icmp_seq=3 ttl=64 time=30.577 ms
+84 bytes from 192.168.0.3 icmp_seq=4 ttl=64 time=18.575 ms
+84 bytes from 192.168.0.3 icmp_seq=5 ttl=64 time=23.432 ms
+```
+
+*Такой способ взаимодействия значительно упрощает конфигурацию на VTEP'aх, однако, Vlan-based способ на сегодняшний день остается более популярным засчет большей поддержки вендорами*
+
 Все конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_1/configs)
