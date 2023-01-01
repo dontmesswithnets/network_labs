@@ -609,3 +609,578 @@ VPCS> ping 192.168.0.3
 *Такой способ взаимодействия значительно упрощает конфигурацию на VTEP'aх, однако, Vlan-based способ на сегодняшний день остается более популярным засчет большей поддержки вендорами*
 
 Все конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_1/configs)
+
+<br/>
+
+## Тоже самое для NXOS 9k (9.3.10)
+
+### Решил повторить все на нексусах, настройки там отличаются, а некоторые привычные для Arista вещи работают немного иначе
+
+Схема следующая 
+
+![image](topology_2.JPG)
+
+_Отличается тем, что на схеме представлены нексусы, а вместо VPCS - Cisco Vios роутеры (в среде EVE-NG они в связке с NXOS работают стабильнее)_
+
+_Для экономии времени буду приводить сразу весь конфиг для каждого устройства с описанием вводимых команд_
+
+**Для SPINE-01**
+
+_Спайн будет непосредственно участвовать в BGP EVPN соседстве, однако, как и в схеме с Arista не будет терминировать на себе NVE интерфейс и знать что либо о VLAN или VNI_
+
+* Включим необходимые функции, зададим конфигурацию интерфейсов Ethernet и loopback0, настроим BGP сессию по p2p линкам в Underlay и BGP EVPN сессию в Overaly через loopback0
+
+```
+spine-01(config)# feature bgp
+spine-01(config)# feature nv overlay
+spine-01(config)# feature vn-segment-vlan-based
+spine-01(config)# nv overlay evpn
+
+spine-01(config)# int eth 1/1
+spine-01(config-if)# no switchport
+spine-01(config-if)# ip address 169.254.0.0/31
+spine-01(config-if)# description leaf-01
+spine-01(config-if)# no shutdown
+
+spine-01(config)# int eth 1/2
+spine-01(config-if)# no switchport
+spine-01(config-if)# ip address 169.254.0.2/31
+spine-01(config-if)# description leaf-02
+spine-01(config-if)# no shutdown
+
+spine-01(config)# int loopback 0
+spine-01(config-if)# description router-id
+spine-01(config-if)# ip address 10.10.10.10/32
+
+spine-01(config)# int loopback 1
+spine-01(config-if)# description Overlay
+spine-01(config-if)# ip address 1.1.1.1/32
+
+spine-01(config)# ip prefix-list LOOPBACKS seq 5 permit 10.10.10.10/32
+spine-01(config)# ip prefix-list LOOPBACKS seq 10 permit 1.1.1.1/32
+spine-01(config)# route-map LOOPBACKS permit 10
+spine-01(config-route-map)# match ip address prefix-list LOOPBACKS
+spine-01(config)# route-map LEAF_AS_RANGE permit 10
+spine-01(config-route-map)# match as-number 1110-1120
+spine-01(config)# router bgp 1111
+spine-01(config-router)# router-id 10.10.10.10
+spine-01(config-router)# address-family ipv4 unicast
+spine-01(config-router-af)# redistribute direct route-map LOOPBACKS
+spine-01(config-router)# neighbor 169.254.0.0/24 remote-as route-map LEAF_AS_RANGE
+spine-01(config-router-neighbor)# address-family ipv4 unicast
+
+spine-01(config-router)# address-family l2vpn evpn
+spine-01(config-router-af)# retain route-target all
+
+spine-01(config-router)# neighbor 1.1.1.0/24 remote-as route-map LEAF_AS_RANGE
+spine-01(config-router-neighbor)# ebgp-multihop 2
+spine-01(config-router-neighbor)# update-source loopback 0
+spine-01(config-router-neighbor)# address-family l2vpn evpn
+spine-01(config-router-neighbor-af)# send-community
+spine-01(config-router-neighbor-af)# send-community extended
+spine-01(config-router-neighbor-af)# route-map SET_NEXT_HOP_UNCHANGED out
+
+```
+
+
+```
+leaf-01(config)# vlan 10
+leaf-01(config-vlan)# name PROD
+leaf-01(config-vlan)# vn-segment 1010
+leaf-01(config)# vlan 20
+leaf-01(config-vlan)# name DEV
+leaf-01(config-vlan)# vn-segment 1020
+
+leaf-01(config)# int eth 1/1
+leaf-01(config-if)# description spine-01
+leaf-01(config-if)# no switchport
+leaf-01(config-if)# ip address 169.254.0.1/31
+leaf-01(config-if)# no shutdown
+
+leaf-01(config)# int eth 1/2
+leaf-01(config-if)# description host-01
+leaf-01(config-if)# switchport mode trunk
+leaf-01(config-if)# switchport trunk allowed vlan 10
+leaf-01(config-if)# no shutdown
+
+leaf-01(config)# int eth 1/3
+leaf-01(config-if)# description host-02
+leaf-01(config-if)# switchport mode trunk
+leaf-01(config-if)# switchport trunk allowed vlan 20
+leaf-01(config-if)# no shutdown
+
+leaf-01(config)# interface loopback 0
+leaf-01(config-if)# description vtep
+leaf-01(config-if)# ip address 1.1.1.2/32
+
+leaf-01(config)# ip prefix-list LOOPBACKS seq 5 permit 1.1.1.1/32
+leaf-01(config)# route-map LOOPBACKS permit 10
+leaf-01(config-route-map)# match ip address prefix-list LOOPBACKS
+
+leaf-01(config)# interface nve 1
+leaf-01(config-if-nve)# source-interface loopback 0
+leaf-01(config-if-nve)# host-reachability protocol bgp
+leaf-01(config-if-nve)# member vni 1010
+leaf-01(config-if-nve-vni)# ingress-replication protocol bgp
+leaf-01(config-if-nve)# member vni 1020
+leaf-01(config-if-nve-vni)# ingress-replication protocol bgp
+leaf-01(config-if-nve)# no shutdown
+
+leaf-01(config)# router bgp 1112
+leaf-01(config-router)# router-id 1.1.1.2
+leaf-01(config-router)# address-family ipv4 unicast
+leaf-01(config-router-af)# redistribute direct route-map LOOPBACKS
+leaf-01(config-router)# neighbor 169.254.0.0 remote-as 1111
+leaf-01(config-router-neighbor)# address-family ipv4 unicast
+
+leaf-01(config-router)# neighbor 1.1.1.1 remote-as 1111
+leaf-01(config-router-neighbor)# ebgp-multihop 2
+leaf-01(config-router-neighbor)# update-source loopback 0
+leaf-01(config-router-neighbor)# address-family l2vpn evpn
+leaf-01(config-router-neighbor-af)# send-community
+leaf-01(config-router-neighbor-af)# send-community extended
+
+leaf-01(config)# evpn
+leaf-01(config-evpn)# vni 1010 l2
+leaf-01(config-evpn-evi)# rd 1.1.1.2:1010
+leaf-01(config-evpn-evi)# route-target export 1010:10
+leaf-01(config-evpn-evi)# route-target import 1010:10
+leaf-01(config-evpn)# vni 1020 l2
+leaf-01(config-evpn-evi)# rd 1.1.1.2:1020
+leaf-01(config-evpn-evi)# route-target export 1020:10
+leaf-01(config-evpn-evi)# route-target import 1020:10
+```
+
+_После выполненных настроек можем посмотреть на состояние BGP соседства в address-family **l2vpn evpn** на spine-01_
+
+```
+spine-01# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 18, Local Router ID is 10.10.10.10
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1112 i
+
+Route Distinguisher: 1.1.1.2:1020
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1112 i
+
+Route Distinguisher: 1.1.1.3:1010
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1113 i
+
+Route Distinguisher: 1.1.1.3:1020
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1113 i
+
+spine-01# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 10.10.10.10, local AS number 1111
+BGP table version is 19, L2VPN EVPN config peers 3, capable peers 2
+4 network entries and 4 paths using 976 bytes of memory
+BGP attribute entries [4/688], BGP AS path entries [2/12]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.2         4  1112      23      25       19    0    0 00:12:47 2
+1.1.1.3         4  1113      18      15       19    0    0 00:04:45 2
+```
+
+_Выше мы увидели, что соседства в состоянии **established**, а от соседей мы получили по 2 маршрута, в данном случае это type-3 маршруты (**IMET**), то есть подписка на BUM трафик в конкретных VNI_
+
+```
+leaf-01# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 1.1.1.2, local AS number 1112
+BGP table version is 9, L2VPN EVPN config peers 1, capable peers 1
+6 network entries and 6 paths using 1224 bytes of memory
+BGP attribute entries [4/688], BGP AS path entries [1/10]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.1         4  1111      31      23        9    0    0 00:14:40 2
+leaf-01# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 9, Local Router ID is 1.1.1.2
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010    (L2VNI 1010)
+*>l[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.2:1020    (L2VNI 1020)
+*>l[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.3:1010
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.3:1020
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+leaf-01# sh nve peers
+Interface Peer-IP                                 State LearnType Uptime   Route
+r-Mac
+--------- --------------------------------------  ----- --------- -------- -----
+------------
+nve1      1.1.1.3                                 Up    CP        00:03:13 n/a
+```
+
+_Если смотреть на leaf-01 и leaf-02, то можно увидеть NVE пиров, так как на них настроены NVE интерфейсы и EPVN инстансы_
+
+```
+leaf-02# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 1.1.1.3, local AS number 1113
+BGP table version is 13, L2VPN EVPN config peers 1, capable peers 1
+6 network entries and 6 paths using 1224 bytes of memory
+BGP attribute entries [4/688], BGP AS path entries [1/10]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.1         4  1111      25      17       13    0    0 00:07:27 2
+leaf-02# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 13, Local Router ID is 1.1.1.3
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+
+Route Distinguisher: 1.1.1.2:1020
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+
+Route Distinguisher: 1.1.1.3:1010    (L2VNI 1010)
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                           100      32768 i
+
+Route Distinguisher: 1.1.1.3:1020    (L2VNI 1020)
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                           100      32768 i
+
+leaf-02# sh nve peers
+Interface Peer-IP                                 State LearnType Uptime   Route
+r-Mac
+--------- --------------------------------------  ----- --------- -------- -----
+------------
+nve1      1.1.1.2                                 Up    CP        00:03:43 n/a
+```
+
+_Ниже конфиг на хостах, в качестве которых я использую образы Cisco vios роутеров, а также проверка доступности по ICMP_
+
+```
+prod-02#sh ip int brief
+Interface                  IP-Address      OK? Method Status                Protocol
+GigabitEthernet0/0         unassigned      YES unset  up                    up
+GigabitEthernet0/0.10      192.168.0.1     YES manual up                    up
+GigabitEthernet0/1         unassigned      YES unset  administratively down down
+GigabitEthernet0/2         unassigned      YES unset  administratively down down
+GigabitEthernet0/3         unassigned      YES unset  administratively down down
+prod-02#ping 192.168.0.2
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 192.168.0.2, timeout is 2 seconds:
+.!!!!
+Success rate is 80 percent (4/5), round-trip min/avg/max = 5/6/10 ms
+```
+
+```
+dev-02#sh ip int brief
+Interface                  IP-Address      OK? Method Status                Protocol
+GigabitEthernet0/0         unassigned      YES unset  up                    up
+GigabitEthernet0/0.20      192.168.0.11    YES manual up                    up
+GigabitEthernet0/1         unassigned      YES unset  administratively down down
+GigabitEthernet0/2         unassigned      YES unset  administratively down down
+GigabitEthernet0/3         unassigned      YES unset  administratively down down
+dev-02#ping 192.168.0.12
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 192.168.0.12, timeout is 2 seconds:
+.!!!!
+Success rate is 80 percent (4/5), round-trip min/avg/max = 6/8/13 ms
+```
+
+_После обмена трафиком можем видеть type-2 маршруты в EVPN апдейтах_
+
+```
+spine-01# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 10.10.10.10, local AS number 1111
+BGP table version is 23, L2VPN EVPN config peers 3, capable peers 2
+8 network entries and 8 paths using 1952 bytes of memory
+BGP attribute entries [8/1376], BGP AS path entries [2/12]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.2         4  1112      35      34       23    0    0 00:22:45 4
+1.1.1.3         4  1113      29      24       23    0    0 00:14:43 4
+spine-01# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 23, Local Router ID is 10.10.10.10
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010
+*>e[2]:[0]:[0]:[48]:[5010.000c.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1112 i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1112 i
+
+Route Distinguisher: 1.1.1.2:1020
+*>e[2]:[0]:[0]:[48]:[5010.000d.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1112 i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1112 i
+
+Route Distinguisher: 1.1.1.3:1010
+*>e[2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1113 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1113 i
+
+Route Distinguisher: 1.1.1.3:1020
+*>e[2]:[0]:[0]:[48]:[5010.000f.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1113 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1113 i
+```
+
+```
+leaf-01# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 1.1.1.2, local AS number 1112
+BGP table version is 15, L2VPN EVPN config peers 1, capable peers 1
+12 network entries and 12 paths using 2448 bytes of memory
+BGP attribute entries [10/1720], BGP AS path entries [1/10]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.1         4  1111      41      32       15    0    0 00:23:14 4
+leaf-01# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 15, Local Router ID is 1.1.1.2
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010    (L2VNI 1010)
+*>l[2]:[0]:[0]:[48]:[5010.000c.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                           100      32768 i
+*>e[2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1111 1113
+ i
+*>l[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.2:1020    (L2VNI 1020)
+*>l[2]:[0]:[0]:[48]:[5010.000d.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                           100      32768 i
+*>e[2]:[0]:[0]:[48]:[5010.000f.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1111 1113
+ i
+*>l[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.3:1010
+*>e[2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1111 1113
+ i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+
+Route Distinguisher: 1.1.1.3:1020
+*>e[2]:[0]:[0]:[48]:[5010.000f.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                                        0 1111 1113
+ i
+*>e[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                                        0 1111 1113
+ i
+```
+
+```
+leaf-02# sh bgp l2vpn evpn summary
+BGP summary information for VRF default, address family L2VPN EVPN
+BGP router identifier 1.1.1.3, local AS number 1113
+BGP table version is 19, L2VPN EVPN config peers 1, capable peers 1
+12 network entries and 12 paths using 2448 bytes of memory
+BGP attribute entries [10/1720], BGP AS path entries [1/10]
+BGP community entries [0/0], BGP clusterlist entries [0/0]
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+1.1.1.1         4  1111      36      25       19    0    0 00:16:19 4
+leaf-02# sh bgp l2vpn evpn
+BGP routing table information for VRF default, address family L2VPN EVPN
+BGP table version is 19, Local Router ID is 1.1.1.3
+Status: s-suppressed, x-deleted, S-stale, d-dampened, h-history, *-valid, >-best
+Path type: i-internal, e-external, c-confed, l-local, a-aggregate, r-redist, I-i
+njected
+Origin codes: i - IGP, e - EGP, ? - incomplete, | - multipath, & - backup, 2 - b
+est2
+
+   Network            Next Hop            Metric     LocPrf     Weight Path
+Route Distinguisher: 1.1.1.2:1010
+*>e[2]:[0]:[0]:[48]:[5010.000c.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1111 1112
+ i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+
+Route Distinguisher: 1.1.1.2:1020
+*>e[2]:[0]:[0]:[48]:[5010.000d.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1111 1112
+ i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+
+Route Distinguisher: 1.1.1.3:1010    (L2VNI 1010)
+*>e[2]:[0]:[0]:[48]:[5010.000c.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                           100      32768 i
+
+Route Distinguisher: 1.1.1.3:1020    (L2VNI 1020)
+*>e[2]:[0]:[0]:[48]:[5010.000d.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[2]:[0]:[0]:[48]:[5010.000f.0000]:[0]:[0.0.0.0]/216
+                      1.1.1.3                           100      32768 i
+*>e[3]:[0]:[32]:[1.1.1.2]/88
+                      1.1.1.2                                        0 1111 1112
+ i
+*>l[3]:[0]:[32]:[1.1.1.3]/88
+                      1.1.1.3                           100      32768 i
+```
+
+_Более подробный вывод команд_
+
+```
+leaf-01# sh bgp l2vpn evpn vni-id 1010 route-type 2
+BGP routing table information for VRF default, address family L2VPN EVPN
+Route Distinguisher: 1.1.1.2:1010    (L2VNI 1010)
+BGP routing table entry for [2]:[0]:[0]:[48]:[5010.000c.0000]:[0]:[0.0.0.0]/216,
+ version 14
+Paths: (1 available, best #1)
+Flags: (0x000102) (high32 00000000) on xmit-list, is not in l2rib/evpn
+
+  Advertised path-id 1
+  Path type: local, path is valid, is best path, no labeled nexthop
+  AS-Path: NONE, path locally originated
+    1.1.1.2 (metric 0) from 0.0.0.0 (1.1.1.2)
+      Origin IGP, MED not set, localpref 100, weight 32768
+      Received label 1010
+      Extcommunity: RT:1010:10 ENCAP:8
+
+  Path-id 1 advertised to peers:
+    1.1.1.1
+BGP routing table entry for [2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0.0.0.0]/216,
+ version 11
+Paths: (1 available, best #1)
+Flags: (0x000212) (high32 00000000) on xmit-list, is in l2rib/evpn, is not in HW
+
+  Advertised path-id 1
+  Path type: external, path is valid, is best path, no labeled nexthop, in rib
+             Imported from 1.1.1.3:1010:[2]:[0]:[0]:[48]:[5010.000e.0000]:[0]:[0
+.0.0.0]/216
+  AS-Path: 1111 1113 , path sourced external to AS
+    1.1.1.3 (metric 0) from 1.1.1.1 (10.10.10.10)
+      Origin IGP, MED not set, localpref 100, weight 0
+      Received label 1010
+      Extcommunity: RT:1010:10 ENCAP:8
+
+  Path-id 1 not advertised to any peer
+
+leaf-01# sh bgp l2vpn evpn vni-id 1010 route-type 3
+BGP routing table information for VRF default, address family L2VPN EVPN
+Route Distinguisher: 1.1.1.2:1010    (L2VNI 1010)
+BGP routing table entry for [3]:[0]:[32]:[1.1.1.2]/88, version 4
+Paths: (1 available, best #1)
+Flags: (0x000002) (high32 00000000) on xmit-list, is not in l2rib/evpn
+
+  Advertised path-id 1
+  Path type: local, path is valid, is best path, no labeled nexthop
+  AS-Path: NONE, path locally originated
+    1.1.1.2 (metric 0) from 0.0.0.0 (1.1.1.2)
+      Origin IGP, MED not set, localpref 100, weight 32768
+      Extcommunity: RT:1010:10 ENCAP:8
+      PMSI Tunnel Attribute:
+        flags: 0x00, Tunnel type: Ingress Replication
+        Label: 1010, Tunnel Id: 1.1.1.2
+
+  Path-id 1 advertised to peers:
+    1.1.1.1
+BGP routing table entry for [3]:[0]:[32]:[1.1.1.3]/88, version 7
+Paths: (1 available, best #1)
+Flags: (0x000012) (high32 00000000) on xmit-list, is in l2rib/evpn, is not in HW
+
+  Advertised path-id 1
+  Path type: external, path is valid, is best path, no labeled nexthop
+             Imported from 1.1.1.3:1010:[3]:[0]:[32]:[1.1.1.3]/88
+  AS-Path: 1111 1113 , path sourced external to AS
+    1.1.1.3 (metric 0) from 1.1.1.1 (10.10.10.10)
+      Origin IGP, MED not set, localpref 100, weight 0
+      Extcommunity: RT:1010:10 ENCAP:8
+      PMSI Tunnel Attribute:
+        flags: 0x00, Tunnel type: Ingress Replication
+        Label: 1010, Tunnel Id: 1.1.1.3
+
+  Path-id 1 not advertised to any peer
+```
+
+### В этот раз конфиги устройств отделньо не сохранял, однако здесь были расммотрены все нужные команды
