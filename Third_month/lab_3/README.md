@@ -196,12 +196,13 @@ Request 0 timed out
 round-trip min/avg/max = 1.179/2.055/3.375 ms
 ```
 
-_На первой паре лифов мы будем использовать домен 10, а на второй домен 20. Нам понадобится настроить peer-keepalive для соседей, а также vpc peer-link между ними, который будет строиться на port-channel и состоять из двух Ethernet интерфейсов_
+_На первой паре лифов мы будем использовать домен 10, а на второй домен 20. Нам понадобится настроить peer-keepalive для соседей, а также vpc peer-link между ними, который будет строиться на port-channel и состоять из двух Ethernet интерфейсов (peer-gateway мы здесь не указываем, так как в данной лабе настраиваем искоючительно L2VNI)_
 
 ```
 leaf-1.1(config)# vpc domain 10
 leaf-1.1(config-vpc-domain)# role priority 10
 leaf-1.1(config-vpc-domain)# peer-keepalive destination 10.0.0.2 source 10.0.0.1
+leaf-1.1(config-vpc-domain)# peer-switch
 leaf-1.1(config)# int eth 1/4-5
 leaf-1.1(config-if-range)# description vpc-peer-link
 leaf-1.1(config-if-range)# switchport
@@ -453,7 +454,7 @@ est2
 1 4200000022 ?
 ```
 
-_Теперь можно устанавливать l2vpn EVPN соседство_
+_Теперь можно устанавливать l2vpn EVPN соседство (тут мы еще указываем команду advertise-pip, для того, чтобы маршруты type-5 анансировались не с конкретного vtep адреса, а не с shared)_
 
 ```
 leaf-1.1(config)# router bgp 4200000021
@@ -463,6 +464,7 @@ leaf-1.1(config-router-neighbor)# update-source loopback 0
 leaf-1.1(config-router-neighbor)# address-family l2vpn evpn
 leaf-1.1(config-router-neighbor-af)# send-community
 leaf-1.1(config-router-neighbor-af)# send-community extended
+leaf-1.1(config-router-neighbor-af)# advertise-pip
 
 leaf-1.1(config-router)# neighbor 3.3.3.4 remote-as 4200000022
 leaf-1.1(config-router-neighbor)# ebgp-multihop 3
@@ -470,6 +472,7 @@ leaf-1.1(config-router-neighbor)# update-source loopback 0
 leaf-1.1(config-router-neighbor)# address-family l2vpn evpn
 leaf-1.1(config-router-neighbor-af)# send-community
 leaf-1.1(config-router-neighbor-af)# send-community extended
+leaf-1.1(config-router-neighbor-af)# advertise-pip
 leaf-1.1(config-router-neighbor-af)# end
 ```
 
@@ -508,6 +511,7 @@ leaf-1.1(config-if-nve)# source-interface loopback 1
 leaf-1.1(config-if-nve)# member vni 1010
 leaf-1.1(config-if-nve-vni)# ingress-replication protocol bgp
 leaf-1.1(config-if-nve-vni)# exit
+leaf-1.1(config-if-nve)# advertise virtual-rmac
 leaf-1.1(config-if-nve)# no shutdown
 leaf-1.1(config-if-nve)# end
 ```
