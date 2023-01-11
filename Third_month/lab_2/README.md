@@ -715,7 +715,6 @@ leaf-02(config-vrf-af-ipv4)# route-target both 999:99 evpn
 ```
 leaf-01(config)# interface vlan 10
 leaf-01(config-if)# vrf member CLIENTS
-Warning: Deleted all L3 config on interface Vlan10
 leaf-01(config-if)# ip address 192.168.0.1/24
 leaf-01(config-if)# fabric forwarding mode anycast-gateway
 leaf-01(config-if)# interface vlan 20
@@ -727,7 +726,6 @@ leaf-01(config-if)# fabric forwarding mode anycast-gateway
 ```
 leaf-02(config)# interface vlan 10
 leaf-02(config-if)# vrf member CLIENTS
-Warning: Deleted all L3 config on interface Vlan10
 leaf-02(config-if)# ip address 192.168.0.1/24
 leaf-02(config-if)# fabric forwarding mode anycast-gateway
 leaf-02(config-if)# interface vlan 30
@@ -747,7 +745,16 @@ leaf-01(config-if)# vrf member CLIENTS
 leaf-01(config-if)# ip forward
 ```
 
-* для leaf-02 тут все одинаково
+```
+leaf-02(config)# vlan 99
+leaf-02(config-vlan)# vn-segment 999
+leaf-02(config-vlan)# name L3VNI
+leaf-02(config-vlan)# exit
+leaf-02(config)# interface vlan 99
+leaf-02(config-if)# no shutdown
+leaf-02(config-if)# vrf member CLIENTS
+leaf-02(config-if)# ip forward
+```
 
 ```
 leaf-01(config)# interface nve 1
