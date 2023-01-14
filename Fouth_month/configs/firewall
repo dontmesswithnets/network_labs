@@ -1,0 +1,60 @@
+
+firewall-01#sh run
+! Command: show running-config
+! device: firewall-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wrmem copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname firewall-01
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+!
+interface Ethernet1.100
+   encapsulation dot1q vlan 100
+   ip address 169.254.0.6/31
+!
+interface Ethernet1.200
+   encapsulation dot1q vlan 200
+   ip address 169.254.0.8/31
+!
+interface Ethernet2
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.0.4.1/32
+!
+interface Management1
+!
+ip routing
+!
+mpls ip
+!
+router bgp 4259905000
+   router-id 10.0.4.1
+   neighbor 169.254.0.7 remote-as 4259840100
+   neighbor 169.254.0.9 remote-as 4259840200
+!
+end

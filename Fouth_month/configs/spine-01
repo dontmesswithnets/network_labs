@@ -1,0 +1,80 @@
+
+spine-01#sh run
+! Command: show running-config
+! device: spine-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wrmem copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname spine-01
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   description leaf-01
+   no switchport
+   ip address 169.254.0.0/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   description leaf-02
+   no switchport
+   ip address 169.254.0.2/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+   description border_leaf-01
+   no switchport
+   ip address 169.254.0.4/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.0.2.1/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+ip routing
+!
+mpls ip
+!
+peer-filter LEAF_AS_RANGE
+   10 match as-range 65000-65010 result accept
+!
+router bgp 65000
+   router-id 10.0.2.1
+   bgp listen range 10.0.0.0/16 peer-group OVERLAY peer-filter LEAF_AS_RANGE
+   neighbor OVERLAY peer group
+   neighbor OVERLAY update-source Loopback0
+   neighbor OVERLAY route-reflector-client
+   neighbor OVERLAY send-community
+   !
+   address-family evpn
+      neighbor OVERLAY activate
+   !
+   address-family ipv4
+      no neighbor OVERLAY activate
+!
+router ospf 1
+   router-id 10.0.2.1
+   max-lsa 12000
+!
+end
