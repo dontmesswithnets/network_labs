@@ -156,6 +156,10 @@ round-trip min/avg/max = 4.826/8.599/16.037 ms
 ```
 _Как видим, между всеми **Underlay** устройствами появилась IP связность благодаря настроенному протоколу **IS-IS**_
 
-_Топология_ **Underlay** _с указанием адресации на устройствах_ (включая loopback) ![image](topology.JPG)
+_Топология_ **Underlay** _с указанием адресации на устройствах_ (включая loopback)
 
-_Полные конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Second_month/lab_1/configs)
+
+
+ ![image](topology.JPG)
+
+_Полные конфиги устройств лежат_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_3/configs)
