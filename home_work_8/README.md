@@ -588,7 +588,7 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
  * >      192.168.2.0/24         169.254.0.9           0       -          100     0       4259840200 i
 ```
 
-_Все успешно работает. Конфиги будут лежать_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Fouth_month/configs)
+_Все успешно работает. Конфиги будут лежать_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_8/configs)
 
 <br/>
 
@@ -1530,5 +1530,5 @@ n HW
     10.0.1.1           10.0.1.2
 ```
 
-_Конфиги лежат_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Fouth_month/configs_nxos)
+_Конфиги лежат_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_8/configs_nxos)
 
