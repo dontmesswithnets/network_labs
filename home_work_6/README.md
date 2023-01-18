@@ -8,7 +8,7 @@ _В этой самостоятельной работе мы ожидаем, ч
 
 _Для решения этой задачи я немного обновил нашу схему, выглядит она так_
 
-![image](topology.jpg)
+![image](topology.JPG)
 
 _На схеме выше у нас 2 VTEP'а, это leaf-01 и leaf-02. Слева у нас два влана и по два хоста в каждом из них. Справа также два влана, в которых по два хоста. Хосты в пределах одного влана за одним VTEP должны общаться между через switchport интерфейсы без вмешательства Vxlan, хосты в разных вланах, но за одним VTEP должны общаться через SVI интерфейсы. Хосты в одном влане, но за разными VTEP должны общаться через L2VNI EVPN, а хосты в разных вланах и за разными VTEP должны общаться через L3VNI EVPN_
 
@@ -18,7 +18,7 @@ _На схеме выше у нас 2 VTEP'а, это leaf-01 и leaf-02. Сле
 
 <br/>
 
-_На данный момент ethernet интерфейсы и loopback настроены аналогично предыдущей_ [лабе](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_1)
+_На данный момент ethernet интерфейсы и loopback настроены аналогично предыдущей_ [лабе](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_5)
 
 _Интерфейсы на leaf-01, которые смотрят на хосты настроены в режиме switchport mode access и находятся в вланах 10 и 20, соответственно. Интерфейсы на leaf-02 настроены аналогично, кроме вланов - там 10 и 30. Все остальные порты, включая на spine-01, настроены в режиме L3 и имеют адресацию /31_
 
@@ -261,7 +261,7 @@ VPCS> ping 192.168.2.2
 
 _Таким образом мы настроили L3VNI EVPN в рамках нашего вымышленного ЦОД, состоящим из 8 VPCS, 1 SPINE и 2 LEAF_
 
-Конфигурация устройств [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_2/configs)
+Конфигурация устройств [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_6/configs_arista)
 
 <br/>
 
@@ -847,5 +847,5 @@ Route Distinguisher: 3.3.3.30:300
 
 <br/>
 
-_Ссылки на конфиги_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_2/configs_nxos)
+_Ссылки на конфиги_ [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_6/configs_nxos)
 
