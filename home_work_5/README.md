@@ -608,7 +608,7 @@ VPCS> ping 192.168.0.3
 
 *Такой способ взаимодействия значительно упрощает конфигурацию на VTEP'aх, однако, Vlan-based способ на сегодняшний день остается более популярным засчет большей поддержки вендорами*
 
-Все конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Third_month/lab_1/configs)
+Все конфиги устройств лежат [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_5/configs)
 
 <br/>
 
@@ -1183,4 +1183,4 @@ Flags: (0x000012) (high32 00000000) on xmit-list, is in l2rib/evpn, is not in HW
   Path-id 1 not advertised to any peer
 ```
 
-### В этот раз конфиги устройств отдельно не сохранял, однако здесь были расммотрены все нужные команды
+### В этот раз конфиги устройств отдельно не сохранял, однако здесь были расмотрены все нужные команды
