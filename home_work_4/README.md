@@ -7,6 +7,10 @@ _В этой самостоятельной работе мы ожидаем, ч
 - составите план работы, адресное пространство, схему сети, настройки
 
 
+_Работать будем вот с такой топологией_
+
+![image](topology_BGP.JPG)
+
 ## **План работы**
 __На интерфейсах между Underlay устройствами мы используем /31 адреса. На лупбеке настроен /32 адрес__
 
@@ -782,4 +786,4 @@ Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
 
 <br/>
 
-Все конфиги [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/Second_month/lab_2/configs)
+Все конфиги [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_4/configs)
