@@ -1,0 +1,150 @@
+
+leaf-01#sh run
+! Command: show running-config
+! device: leaf-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wrmem copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname leaf-01
+!
+spanning-tree mode mstp
+!
+vlan 10
+   name PROD
+!
+vlan 20
+   name DEV
+!
+vlan 4094
+   name for_MLAG
+   trunk group MLAG
+!
+vrf instance CLIENTS
+!
+interface Port-Channel4
+   switchport trunk allowed vlan 10
+   switchport mode trunk
+   mlag 4
+!
+interface Port-Channel5
+   switchport trunk allowed vlan 20
+   switchport mode trunk
+   mlag 5
+!
+interface Port-Channel10
+   switchport mode trunk
+   switchport trunk group MLAG
+!
+interface Ethernet1
+   description spine-01
+   no switchport
+   ip address 169.254.0.1/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   channel-group 10 mode active
+!
+interface Ethernet3
+   channel-group 10 mode active
+!
+interface Ethernet4
+   channel-group 4 mode active
+!
+interface Ethernet5
+   channel-group 5 mode active
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.0.1.1/32
+   ip ospf area 0.0.0.0
+!
+interface Loopback1
+   description vtep
+   ip address 10.0.1.10/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+interface Vlan10
+   vrf CLIENTS
+   ip address virtual 192.168.0.1/24
+!
+interface Vlan20
+   vrf CLIENTS
+   ip address virtual 192.168.1.1/24
+!
+interface Vlan4094
+   ip address 10.0.0.1/30
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 100
+   vxlan vlan 20 vni 200
+   vxlan vrf CLIENTS vni 5000
+!
+ip virtual-router mac-address 00:00:11:11:22:22
+!
+ip routing
+ip routing vrf CLIENTS
+!
+mlag configuration
+   domain-id test
+   heartbeat-interval 5000
+   local-interface Vlan4094
+   peer-address 10.0.0.2
+   peer-address heartbeat 10.0.0.2
+   peer-link Port-Channel10
+   dual-primary detection delay 100 action errdisable all-interfaces
+   dual-primary recovery delay mlag 60 non-mlag 0
+   reload-delay mlag 120
+   reload-delay non-mlag 0
+!
+router bgp 65000
+   router-id 10.0.1.1
+   neighbor SPINE_OVERLAY peer group
+   neighbor SPINE_OVERLAY remote-as 65000
+   neighbor SPINE_OVERLAY update-source Loopback0
+   neighbor SPINE_OVERLAY send-community
+   neighbor 10.0.2.1 peer group SPINE_OVERLAY
+   !
+   vlan 10
+      rd 10.0.1.10:100
+      route-target both 100:10
+      redistribute learned
+   !
+   vlan 20
+      rd 10.0.1.10:200
+      route-target both 200:20
+      redistribute learned
+   !
+   address-family evpn
+      neighbor SPINE_OVERLAY activate
+   !
+   address-family ipv4
+      no neighbor SPINE_OVERLAY activate
+   !
+   vrf CLIENTS
+      rd 10.0.1.10:5000
+      route-target import evpn 1:5000
+      route-target export evpn 1:5000
+!
+router ospf 1
+   router-id 10.0.1.1
+   max-lsa 12000
+!
+end
