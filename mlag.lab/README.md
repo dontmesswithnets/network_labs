@@ -529,3 +529,7 @@ rtt min/avg/max/mdev = 17.209/19.322/23.176/2.153 ms, pipe 2, ipg/ewma 19.592/21
 ```
 
 ## _Так как в этой лабораторной работе я делал упор на настройку MLAG, то решил подробно не останавливаться на настройке всего остального_
+
+<br/>
+
+### _Конфиги [здесь](https://github.com/dontmesswithnets/study_otus/tree/main/mlag.lab/configs)_
