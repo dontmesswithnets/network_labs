@@ -1,4 +1,4 @@
-# Дизайн сетей ЦОД
+# _Дизайн сетей ЦОД_
 
 ## _В этом публичном репозитории я выполняю домашние задания по учебному курсу, посвященному проектированию сетей в центрах обработки данных от [OTUS](https://otus.ru/)_
 
@@ -6,9 +6,18 @@
 
 ![image](data_center.jpeg)
 
-### _В первых четырех лабораторных работах затрагиваются базовые конфигурации динамической маршрутизации, применяемые на сегодняшний день в сетях ЦОД. Это OSPF, IS-IS и BGP_
+# _Мои работы_
 
-### _В последующих лабораторных рассматриваются способы построения L2 и L3 связности с использованием таких протоколов, как VxLAN, MPBGP и EVPN_
+* _[Проектирование сети ЦОД в топологии CLOS](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_1)_
+* _[Настройка Underlay с помощью OSPF](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_2)_
+* _[Настройка Underlay с помощью IS-IS](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_3)_
+* _[Настройка Underlay с помощью EBGP](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_4)_
+* _[Настройка L2VPN с применением L2VNI VxLAN EVPN](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_5)_
+* _[Настройка L3VPN с применением L3VNI VxLAN EVPN](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_6)_
+* _[Настройка отказоустойчивой VxLAN фабрики с применением Cisco VPC](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_7)_
+* _[Настройка route-type 5 в VxLAN фабрике для агрегирования префиксов](https://github.com/dontmesswithnets/study_otus/tree/main/home_work_8)_
+* _[Настройка отказоустойчивой VxLAN фабрики с применением MLAG](https://github.com/dontmesswithnets/study_otus/tree/main/mlag.lab)_
+* _[Настройка EVPN Multihoming как альтернативы VPC/MLAG](https://github.com/dontmesswithnets/study_otus/tree/main/multihoming.lab)_
 
 <br/>
 
