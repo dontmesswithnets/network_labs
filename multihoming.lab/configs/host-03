@@ -1,0 +1,71 @@
+
+host-03#sh run
+! Command: show running-config
+! device: host-03 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wrmem copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname host-03
+!
+spanning-tree mode mstp
+!
+vlan 10
+   name PROD
+!
+vlan 11
+   name DEV
+!
+vrf instance VLAN10
+!
+vrf instance VLAN11
+!
+interface Port-Channel1
+   switchport trunk allowed vlan 10-11
+   switchport mode trunk
+!
+interface Ethernet1
+   description uplink
+   channel-group 1 mode active
+!
+interface Ethernet2
+   description uplink
+   channel-group 1 mode active
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Management1
+!
+interface Vlan10
+   vrf VLAN10
+   ip address 192.168.0.3/24
+!
+interface Vlan11
+   vrf VLAN11
+   ip address 192.168.1.3/24
+!
+ip routing
+ip routing vrf VLAN10
+ip routing vrf VLAN11
+!
+ip route vrf VLAN10 0.0.0.0/0 192.168.0.1
+ip route vrf VLAN11 0.0.0.0/0 192.168.1.1
+!
+end
