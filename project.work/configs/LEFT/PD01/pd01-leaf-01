@@ -71,7 +71,7 @@ interface Vlan1110
 interface Vxlan1
    vxlan source-interface Loopback1
    vxlan udp-port 4789
-   vxlan vrf CUSTOMERS vni 11999
+   vxlan vrf CUSTOMERS vni 22999
 !
 ip routing
 ip routing vrf CUSTOMERS
@@ -86,6 +86,7 @@ router bgp 4200100102
    no bgp default ipv4-unicast
    neighbor CUSTOMERS peer group
    neighbor CUSTOMERS remote-as 4200100101
+   neighbor CUSTOMERS maximum-routes 1000
    neighbor SPINE_OVERLAY peer group
    neighbor SPINE_OVERLAY remote-as 4200100103
    neighbor SPINE_OVERLAY update-source Loopback0
