@@ -19,6 +19,7 @@
 * _[Настройка отказоустойчивой VxLAN фабрики с применением MLAG](https://github.com/dontmesswithnets/study_otus/tree/main/mlag.lab)_
 * _[Настройка EVPN Multihoming как альтернативы VPC/MLAG](https://github.com/dontmesswithnets/study_otus/tree/main/multihoming.lab)_
 * _[Настройка VxLAN EVPN Multisite для объединения нескольких фабрик](https://github.com/dontmesswithnets/study_otus/tree/main/multisite.lab)_
+* _[Настройка DCI VxLAN EVPN + L3VPN](https://github.com/dontmesswithnets/study_otus/tree/main/project.work)_
 
 <br/>
 
