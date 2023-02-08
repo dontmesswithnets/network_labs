@@ -593,4 +593,285 @@ _Как видим, схема взлетела и все работает. Та
 
 <br/>
 
+## Больше клиентов
+
+_В дата центрах редко бывает мало клиентов, предположим, что к нам заехал еще один клиент и он тоже хочет L3VPN между ЦОДами. Добавим необходимую конфигурацию для второго заказчика. Пусть это будет VRF "DIGITAL" (мы же тут как бы в IT)_
+
+* _что добавится на "ESXi хостах" (LEFT-pd01-esxi)_
+
+```
+vlan 110,120,200
+
+vrf instance DIGITAL
+
+interface Port-Channel1
+   switchport trunk allowed vlan add 110
+
+interface Port-Channel2
+   switchport trunk allowed vlan add 120
+
+interface Vlan110
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.1/30
+!
+interface Vlan120
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.5/30
+!
+interface Vlan200
+   vrf DIGITAL
+   ip address 172.16.5.254/23
+
+ip prefix-list DIGITALS_NET seq 5 permit 172.16.4.0/23
+
+route-map DIGITALS_NET permit 10
+   match ip address prefix-list DIGITALS_NET
+
+router bgp 4200100101
+   neighbor DIGITAL peer group
+
+   address-family ipv4
+         neighbor DIGITAL activate
+
+   vrf DIGITAL
+      router-id 10.1.0.1
+      bgp listen range 169.254.2.0/29 peer-group DIGITAL peer-filter LEAF
+      redistribute connected route-map DIGITALS_NET
+```
+
+* _на LEAF'ах (LEFT-pd01-leaf-01)_
+
+```
+vlan 110
+
+vrf instance DIGITAL
+
+interface Port-Channel1
+   switchport trunk allowed vlan add 110
+
+interface Vlan110
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.2/30
+
+interface Vxlan1
+   vxlan vrf DIGITAL vni 33999
+
+router bgp 4200100102
+   neighbor DIGITAL peer group
+   neighbor DIGITAL remote-as 4200100101
+   neighbor DIGITAL maximum-routes 1000
+
+   address-family ipv4
+      neighbor DIGITAL activate
+ 
+   vrf DIGITAL
+      rd 10.1.1.1:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.2.1 peer group DIGITAL
+```
+
+* _на LEAF'ах (LEFT-pd01-leaf-02)_
+
+```
+vlan 120
+
+vrf instance DIGITAL
+
+interface Port-Channel1
+   switchport trunk allowed vlan add 120
+
+interface Vlan120
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.6/30
+
+interface Vxlan1
+   vxlan vrf DIGITAL vni 33999
+
+router bgp 4200100102
+   neighbor DIGITAL peer group
+   neighbor DIGITAL remote-as 4200100101
+   neighbor DIGITAL maximum-routes 1000
+
+   address-family ipv4
+      neighbor DIGITAL activate
+ 
+   vrf DIGITAL
+      rd 10.1.1.2:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.2.5 peer group DIGITAL
+```
+
+* _на BORDER'ах (LEFT-border-01)_
+
+```
+vlan 3986
+
+vrf instance DIGITAL
+
+interface Port-Channel3
+   switchport trunk allowed vlan add 3986
+
+interface Vlan3986
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.200.1/30
+
+interface Vxlan1
+   vxlan vrf DIGITAL vni 33999
+
+router bgp 4200100001
+   neighbor Direct_Connect_Digital peer group
+   neighbor Direct_Connect_Digital remote-as 4200200001
+   neighbor Direct_Connect_Digital maximum-routes 1000
+
+   address-family ipv4
+      neighbor Direct_Connect_Digital activate
+
+   vrf DIGITAL
+      rd 10.1.3.1:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.200.2 peer group Direct_Connect_Digital
+```
+* _на BORDER'ах (LEFT-border-02)_
+
+```
+vlan 3987
+
+vrf instance DIGITAL
+
+interface Port-Channel3
+   switchport trunk allowed vlan add 3987
+
+interface Vlan3987
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.200.5/30
+
+interface Vxlan1
+   vxlan vrf DIGITAL vni 33999
+
+router bgp 4200100001
+   neighbor Direct_Connect_Digital peer group
+   neighbor Direct_Connect_Digital remote-as 4200200001
+   neighbor Direct_Connect_Digital maximum-routes 1000
+
+   address-family ipv4
+      neighbor Direct_Connect_Digital activate
+
+   vrf DIGITAL
+      rd 10.1.3.1:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.200.6 peer group Direct_Connect_Digital
+```
+
+_Со стороны ЦОДа "RIGHT" проделаем аналогичные настройки в обоих ПОДах, а также добавим по одной ВМ в каждом ЦОДе и ПОДе. Пусть это будут 172.16.5.200, 172.16.6.200 и 172.16.7.200_
+
+* _Проверим связность_
+
+```
+VPCS> show ip
+
+NAME        : VPCS[1]
+IP/MASK     : 172.16.5.200/23
+GATEWAY     : 172.16.5.254
+DNS         :
+MAC         : 00:50:79:66:68:17
+LPORT       : 20000
+RHOST:PORT  : 127.0.0.1:30000
+MTU         : 1500
+
+VPCS> ping 172.16.6.200
+
+84 bytes from 172.16.6.200 icmp_seq=1 ttl=58 time=60.666 ms
+84 bytes from 172.16.6.200 icmp_seq=2 ttl=58 time=45.526 ms
+84 bytes from 172.16.6.200 icmp_seq=3 ttl=58 time=50.198 ms
+84 bytes from 172.16.6.200 icmp_seq=4 ttl=58 time=52.024 ms
+84 bytes from 172.16.6.200 icmp_seq=5 ttl=58 time=44.035 ms
+
+VPCS> ping 172.16.7.200
+
+84 bytes from 172.16.7.200 icmp_seq=1 ttl=58 time=47.663 ms
+84 bytes from 172.16.7.200 icmp_seq=2 ttl=58 time=41.966 ms
+84 bytes from 172.16.7.200 icmp_seq=3 ttl=58 time=46.753 ms
+84 bytes from 172.16.7.200 icmp_seq=4 ttl=58 time=45.663 ms
+84 bytes from 172.16.7.200 icmp_seq=5 ttl=58 time=51.171 ms
+```
+
+* _проверим, что клиенты не пересекаются друг с другом_
+
+```
+VPCS> ping 172.16.1.200
+
+*172.16.5.254 icmp_seq=1 ttl=64 time=3.840 ms (ICMP type:3, code:0, Destination network unreachable)
+*172.16.5.254 icmp_seq=2 ttl=64 time=4.515 ms (ICMP type:3, code:0, Destination network unreachable)
+*172.16.5.254 icmp_seq=3 ttl=64 time=3.401 ms (ICMP type:3, code:0, Destination network unreachable)
+*172.16.5.254 icmp_seq=4 ttl=64 time=3.074 ms (ICMP type:3, code:0, Destination network unreachable)
+*172.16.5.254 icmp_seq=5 ttl=64 time=3.232 ms (ICMP type:3, code:0, Destination network unreachable)
+```
+
+* _таблица маршрутизации в новом VRF_
+
+```
+LEAF-pd01-esxi#show ip bgp vrf DIGITAL
+BGP routing table information for VRF DIGITAL
+Router identifier 10.1.0.1, local AS number 4200100101
+Route status codes: s - suppressed, * - valid, > - active, # - not installed, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+         Network                Next Hop            Metric  LocPref Weight  Path
+ * >     172.16.4.0/23          -                     1       0       -       i
+ * >     172.16.6.0/24          169.254.2.2           0       100     0       4200100102 4200100103 4200100001 4200200001 4200200103 4200200102 4200200101 i
+ *       172.16.6.0/24          169.254.2.6           0       100     0       4200100102 4200100103 4200100001 4200200001 4200200103 4200200102 4200200101 i
+ * >     172.16.7.0/24          169.254.2.2           0       100     0       4200100102 4200100103 4200100001 4200200001 4200200203 4200200202 4200200201 i
+ *       172.16.7.0/24          169.254.2.6           0       100     0       4200100102 4200100103 4200100001 4200200001 4200200203 4200200202 4200200201 i
+```
+
+```
+RIGHT-pd01-esxi#show ip bgp vrf DIGITAL
+BGP routing table information for VRF DIGITAL
+Router identifier 10.2.0.1, local AS number 4200200101
+Route status codes: s - suppressed, * - valid, > - active, # - not installed, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+         Network                Next Hop            Metric  LocPref Weight  Path
+ * >     172.16.4.0/23          169.254.2.2           0       100     0       4200200102 4200200103 4200200001 4200100001 4200100103 4200100102 4200100101 i
+ *       172.16.4.0/23          169.254.2.6           0       100     0       4200200102 4200200103 4200200001 4200100001 4200100103 4200100102 4200100101 i
+ * >     172.16.6.0/24          -                     1       0       -       i
+ * >     172.16.7.0/24          169.254.2.2           0       100     0       4200200102 4200200103 4200200001 4200200203 4200200202 4200200201 i
+ *       172.16.7.0/24          169.254.2.6           0       100     0       4200200102 4200200103 4200200001 4200200203 4200200202 4200200201 i
+```
+
+```
+RIGHT-pd02-esxi#show ip bgp vrf DIGITAL
+BGP routing table information for VRF DIGITAL
+Router identifier 10.22.0.1, local AS number 4200200201
+Route status codes: s - suppressed, * - valid, > - active, # - not installed, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+         Network                Next Hop            Metric  LocPref Weight  Path
+ * >     172.16.4.0/23          169.254.2.2           0       100     0       4200200202 4200200203 4200200001 4200100001 4200100103 4200100102 4200100101 i
+ *       172.16.4.0/23          169.254.2.6           0       100     0       4200200202 4200200203 4200200001 4200100001 4200100103 4200100102 4200100101 i
+ * >     172.16.6.0/24          169.254.2.2           0       100     0       4200200202 4200200203 4200200001 4200200103 4200200102 4200200101 i
+ *       172.16.6.0/24          169.254.2.6           0       100     0       4200200202 4200200203 4200200001 4200200103 4200200102 4200200101 i
+ * >     172.16.7.0/24          -                     1       0       -       i
+```
+
+### _Таким образом удалось добавить второго клиента и наладить взаимодействие, при котором один клиент не пересекается с другим_
+
+<br/>
+
 _[Ссылка](https://github.com/dontmesswithnets/study_otus/tree/main/project.work/configs) на конфиги_
