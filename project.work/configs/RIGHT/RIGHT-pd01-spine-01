@@ -1,0 +1,105 @@
+
+RIGHT-pd01-spine-01#sh run
+! Command: show running-config
+! device: RIGHT-pd01-spine-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wr copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname RIGHT-pd01-spine-01
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   description RIGHT-pd01-leaf-01_Eth7
+   mtu 9214
+   no switchport
+   ip address 169.254.0.0/31
+!
+interface Ethernet2
+   description RIGHT-pd01-leaf-02_Eth7
+   mtu 9214
+   no switchport
+   ip address 169.254.0.2/31
+!
+interface Ethernet3
+   description RIGHT-border-01_Eth1
+   mtu 9214
+   no switchport
+   ip address 169.254.0.4/31
+!
+interface Ethernet4
+   description RIGHT-border-02_Eth1
+   mtu 9214
+   no switchport
+   ip address 169.254.0.6/31
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.2.2.1/32
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list LOOPBACKS seq 5 permit 10.2.2.0/24 eq 32
+!
+route-map LOOPBACKS permit 10
+   match ip address prefix-list LOOPBACKS
+!
+peer-filter AS_RANGE_UNDERLAY
+   10 match as-range 4200200102-4200200199 result accept
+   20 match as-range 4200200001 result accept
+!
+router bgp 4200200103
+   router-id 10.2.2.1
+   no bgp default ipv4-unicast
+   bgp listen range 169.254.0.0/24 peer-group UNDERLAY peer-filter AS_RANGE_UNDERLAY
+   neighbor BORDER_OVERLAY peer group
+   neighbor BORDER_OVERLAY remote-as 4200200001
+   neighbor BORDER_OVERLAY next-hop-unchanged
+   neighbor BORDER_OVERLAY update-source Loopback0
+   neighbor BORDER_OVERLAY allowas-in 1
+   neighbor BORDER_OVERLAY ebgp-multihop 2
+   neighbor BORDER_OVERLAY send-community
+   neighbor LEAF_OVERLAY peer group
+   neighbor LEAF_OVERLAY next-hop-unchanged
+   neighbor LEAF_OVERLAY update-source Loopback0
+   neighbor LEAF_OVERLAY ebgp-multihop 2
+   neighbor LEAF_OVERLAY send-community
+   neighbor UNDERLAY peer group
+   neighbor 10.2.1.1 peer group LEAF_OVERLAY
+   neighbor 10.2.1.1 remote-as 4200200102
+   neighbor 10.2.1.1 description RIGHT-pd01-leaf-01
+   neighbor 10.2.1.2 peer group LEAF_OVERLAY
+   neighbor 10.2.1.2 remote-as 4200200102
+   neighbor 10.2.1.2 description RIGHT-pd01-leaf-02
+   neighbor 10.2.3.1 peer group BORDER_OVERLAY
+   neighbor 10.2.3.1 description RIGHT-border-01
+   neighbor 10.2.3.2 peer group BORDER_OVERLAY
+   neighbor 10.2.3.2 description RIGHT-border-02
+   redistribute connected route-map LOOPBACKS
+   !
+   address-family evpn
+      neighbor BORDER_OVERLAY activate
+      neighbor LEAF_OVERLAY activate
+   !
+   address-family ipv4
+      neighbor UNDERLAY activate
+!
+end

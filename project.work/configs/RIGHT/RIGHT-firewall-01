@@ -1,0 +1,105 @@
+
+RIGHT-firewall-01#sh run
+! Command: show running-config
+! device: RIGHT-firewall-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wr copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+hostname RIGHT-firewall-01
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   description RIGHT-border-01
+   no switchport
+!
+interface Ethernet1.100
+   encapsulation dot1q vlan 100
+   ip address 169.254.20.1/31
+!
+interface Ethernet1.200
+   encapsulation dot1q vlan 200
+   ip address 169.254.20.3/31
+!
+interface Ethernet2
+   description RIGHT-border-02
+   no switchport
+!
+interface Ethernet2.300
+   encapsulation dot1q vlan 300
+   ip address 169.254.20.5/31
+!
+interface Ethernet2.400
+   encapsulation dot1q vlan 400
+   ip address 169.254.20.7/31
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.2.4.1/32
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list DENY_VRF_CUSTOMERS seq 5 permit 172.16.0.0/23
+ip prefix-list DENY_VRF_CUSTOMERS seq 10 permit 172.16.2.0/24
+ip prefix-list DENY_VRF_CUSTOMERS seq 15 permit 172.16.3.0/24
+ip prefix-list DENY_VRF_DIGITAL seq 5 permit 172.16.4.0/23
+ip prefix-list DENY_VRF_DIGITAL seq 10 permit 172.16.6.0/24
+ip prefix-list DENY_VRF_DIGITAL seq 15 permit 172.16.7.0/24
+!
+route-map DENY_VRF_CUSTOMERS deny 10
+   match ip address prefix-list DENY_VRF_CUSTOMERS
+!
+route-map DENY_VRF_CUSTOMERS permit 20
+!
+route-map DENY_VRF_DIGITAL deny 10
+   match ip address prefix-list DENY_VRF_DIGITAL
+!
+route-map DENY_VRF_DIGITAL permit 20
+!
+router bgp 4292673500
+   router-id 10.2.4.1
+   no bgp default ipv4-unicast
+   neighbor BORDER peer group
+   neighbor 169.254.20.0 peer group BORDER
+   neighbor 169.254.20.0 remote-as 4292608001
+   neighbor 169.254.20.0 route-map DENY_VRF_CUSTOMERS out
+   neighbor 169.254.20.0 send-community
+   neighbor 169.254.20.2 peer group BORDER
+   neighbor 169.254.20.2 remote-as 4292608002
+   neighbor 169.254.20.2 route-map DENY_VRF_DIGITAL out
+   neighbor 169.254.20.2 send-community
+   neighbor 169.254.20.4 peer group BORDER
+   neighbor 169.254.20.4 remote-as 4292608003
+   neighbor 169.254.20.4 route-map DENY_VRF_CUSTOMERS out
+   neighbor 169.254.20.4 send-community
+   neighbor 169.254.20.6 peer group BORDER
+   neighbor 169.254.20.6 remote-as 4292608004
+   neighbor 169.254.20.6 route-map DENY_VRF_DIGITAL out
+   neighbor 169.254.20.6 send-community
+   !
+   address-family ipv4
+      neighbor BORDER activate
+!
+end

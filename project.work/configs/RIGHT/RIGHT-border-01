@@ -1,0 +1,247 @@
+
+RIGHT-border-01#sh run
+! Command: show running-config
+! device: RIGHT-border-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wr copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname RIGHT-border-01
+!
+spanning-tree mode mstp
+!
+vlan 3456,3986
+!
+vrf instance CUSTOMERS
+!
+vrf instance DIGITAL
+!
+interface Port-Channel5
+   description Data_Center_LEFT_border-01_Po3
+   mtu 9214
+   switchport trunk allowed vlan 3456,3986
+   switchport mode trunk
+!
+interface Ethernet1
+   description RIGHT-pd01-spine-01_Eth3
+   mtu 9214
+   no switchport
+   ip address 169.254.0.5/31
+!
+interface Ethernet2
+   description RIGHT-pd01-spine-02_Eth3
+   mtu 9214
+   no switchport
+   ip address 169.254.0.13/31
+!
+interface Ethernet3
+   description RIGHT-pd02-spine-01_Eth3
+   mtu 9214
+   no switchport
+   ip address 169.254.1.5/31
+!
+interface Ethernet4
+   description RIGHT-pd02-spine-02_Eth3
+   mtu 9214
+   no switchport
+   ip address 169.254.1.13/31
+!
+interface Ethernet5
+   description Data_Center_LEFT_border-01_Eth3
+   mtu 9214
+   channel-group 5 mode active
+!
+interface Ethernet6
+   description RIGHT-firewall-01
+   no switchport
+!
+interface Ethernet6.100
+   encapsulation dot1q vlan 100
+   vrf CUSTOMERS
+   ip address 169.254.20.0/31
+!
+interface Ethernet6.200
+   encapsulation dot1q vlan 200
+   vrf DIGITAL
+   ip address 169.254.20.2/31
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.2.3.1/32
+!
+interface Loopback1
+   description vtep
+   ip address 10.2.3.10/32
+!
+interface Management1
+!
+interface Vlan3456
+   mtu 9214
+   vrf CUSTOMERS
+   ip address 169.254.100.2/30
+!
+interface Vlan3986
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.200.2/30
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vrf CUSTOMERS vni 22999
+   vxlan vrf DIGITAL vni 33999
+!
+ip routing
+ip routing vrf CUSTOMERS
+ip routing vrf DIGITAL
+!
+ip prefix-list CUSTOMERS_DC_OUT seq 5 permit 172.16.2.0/23
+ip prefix-list CUSTOMERS_DC_OUT seq 10 permit 172.16.6.0/23
+ip prefix-list DIGITAL_DC_OUT seq 5 permit 172.16.6.0/23
+ip prefix-list DIGITAL_DC_OUT seq 10 permit 172.16.2.0/23
+ip prefix-list LEFT_VRF_CUSTOMERS seq 5 permit 172.16.0.0/23
+ip prefix-list LEFT_VRF_DIGITAL seq 5 permit 172.16.4.0/23
+ip prefix-list LOOPBACKS seq 5 permit 10.2.3.0/24 eq 32
+ip prefix-list RIGHT_VRF_CUSTOMERS seq 5 permit 172.16.2.0/23 le 24
+ip prefix-list RIGHT_VRF_DIGITAL seq 5 permit 172.16.6.0/23 le 24
+ip community-list LEFT_VRF_CUSTOMERS permit 26:17664
+ip community-list LEFT_VRF_DIGITAL permit 26:17704
+ip community-list RIGHT_VRF_CUSTOMERS permit 26:17684
+ip community-list RIGHT_VRF_DIGITAL permit 26:17724
+!
+route-map CUSTOMERS_ACCEPT permit 10
+   match community LEFT_VRF_CUSTOMERS
+   set local-preference 200
+!
+route-map CUSTOMERS_ACCEPT permit 20
+   match community RIGHT_VRF_CUSTOMERS
+   set local-preference 200
+!
+route-map CUSTOMERS_DC_OUT permit 10
+   match ip address prefix-list CUSTOMERS_DC_OUT
+   set community community-list RIGHT_VRF_CUSTOMERS
+!
+route-map CUSTOMERS_DC_OUT permit 20
+!
+route-map CUSTOMERS_SEND permit 10
+   match ip address prefix-list LEFT_VRF_CUSTOMERS
+   set community community-list LEFT_VRF_CUSTOMERS
+!
+route-map CUSTOMERS_SEND permit 20
+   match ip address prefix-list RIGHT_VRF_CUSTOMERS
+   set community community-list RIGHT_VRF_CUSTOMERS
+!
+route-map DIGITAL_ACCEPT permit 10
+   match community LEFT_VRF_DIGITAL
+   set local-preference 200
+!
+route-map DIGITAL_ACCEPT permit 20
+   match community RIGHT_VRF_DIGITAL
+   set local-preference 200
+!
+route-map DIGITAL_DC_OUT permit 10
+   match ip address prefix-list DIGITAL_DC_OUT
+   set community community-list RIGHT_VRF_DIGITAL
+!
+route-map DIGITAL_DC_OUT permit 20
+!
+route-map DIGITAL_SEND permit 10
+   match ip address prefix-list LEFT_VRF_DIGITAL
+   set community community-list LEFT_VRF_DIGITAL
+!
+route-map DIGITAL_SEND permit 20
+   match ip address prefix-list RIGHT_VRF_DIGITAL
+   set community community-list RIGHT_VRF_DIGITAL
+!
+route-map FIREWALL deny 30
+!
+route-map LOOPBACKS permit 10
+   match ip address prefix-list LOOPBACKS
+!
+router bgp 4200200001
+   router-id 10.2.3.1
+   no bgp default ipv4-unicast
+   neighbor Direct_Connect_Customer peer group
+   neighbor Direct_Connect_Customer remote-as 4200100001
+   neighbor Direct_Connect_Customer route-map CUSTOMERS_DC_OUT out
+   neighbor Direct_Connect_Customer send-community
+   neighbor Direct_Connect_Customer maximum-routes 1000
+   neighbor Direct_Connect_Digital peer group
+   neighbor Direct_Connect_Digital remote-as 4200100001
+   neighbor Direct_Connect_Digital route-map DIGITAL_DC_OUT out
+   neighbor Direct_Connect_Digital send-community
+   neighbor Direct_Connect_Digital maximum-routes 1000
+   neighbor FIREWALL peer group
+   neighbor FIREWALL remote-as 4292673500
+   neighbor SPINE_OVERLAY peer group
+   neighbor SPINE_OVERLAY update-source Loopback0
+   neighbor SPINE_OVERLAY ebgp-multihop 2
+   neighbor SPINE_OVERLAY send-community
+   neighbor SPINE_UNDERLAY peer group
+   neighbor 10.2.2.1 peer group SPINE_OVERLAY
+   neighbor 10.2.2.1 remote-as 4200200103
+   neighbor 10.2.2.1 description RIGHT-pd01-spine-01
+   neighbor 10.2.2.2 peer group SPINE_OVERLAY
+   neighbor 10.2.2.2 remote-as 4200200103
+   neighbor 10.2.2.2 description RIGHT-pd01-spine-02
+   neighbor 10.22.2.1 peer group SPINE_OVERLAY
+   neighbor 10.22.2.1 remote-as 4200200203
+   neighbor 10.22.2.1 description RIGHT-pd02-spine-01
+   neighbor 10.22.2.2 peer group SPINE_OVERLAY
+   neighbor 10.22.2.2 remote-as 4200200203
+   neighbor 10.22.2.2 description RIGHT-pd02-spine-02
+   neighbor 169.254.0.4 peer group SPINE_UNDERLAY
+   neighbor 169.254.0.4 remote-as 4200200103
+   neighbor 169.254.0.12 peer group SPINE_UNDERLAY
+   neighbor 169.254.0.12 remote-as 4200200103
+   neighbor 169.254.1.4 peer group SPINE_UNDERLAY
+   neighbor 169.254.1.4 remote-as 4200200203
+   neighbor 169.254.1.12 peer group SPINE_UNDERLAY
+   neighbor 169.254.1.12 remote-as 4200200203
+   redistribute connected route-map LOOPBACKS
+   !
+   address-family evpn
+      neighbor SPINE_OVERLAY activate
+   !
+   address-family ipv4
+      neighbor Direct_Connect_Customer activate
+      neighbor Direct_Connect_Digital activate
+      neighbor FIREWALL activate
+      neighbor SPINE_UNDERLAY activate
+   !
+   vrf CUSTOMERS
+      rd 10.2.3.1:22999
+      route-target import evpn 2:22999
+      route-target export evpn 2:22999
+      neighbor 169.254.20.1 peer group FIREWALL
+      neighbor 169.254.20.1 local-as 4292608001 no-prepend replace-as
+      neighbor 169.254.20.1 route-map DIGITAL_ACCEPT in
+      neighbor 169.254.20.1 route-map CUSTOMERS_SEND out
+      neighbor 169.254.20.1 send-community
+      neighbor 169.254.100.1 peer group Direct_Connect_Customer
+      aggregate-address 172.16.2.0/23 summary-only
+   !
+   vrf DIGITAL
+      rd 10.2.3.1:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.20.3 peer group FIREWALL
+      neighbor 169.254.20.3 local-as 4292608002 no-prepend replace-as
+      neighbor 169.254.20.3 route-map CUSTOMERS_ACCEPT in
+      neighbor 169.254.20.3 route-map DIGITAL_SEND out
+      neighbor 169.254.20.3 send-community
+      neighbor 169.254.200.1 peer group Direct_Connect_Digital
+      aggregate-address 172.16.6.0/23 summary-only
+!
+end

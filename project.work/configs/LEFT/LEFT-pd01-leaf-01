@@ -1,0 +1,138 @@
+
+LEFT-pd01-leaf-01#sh run
+! Command: show running-config
+! device: LEFT-pd01-leaf-01 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wr copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname LEFT-pd01-leaf-01
+!
+spanning-tree mode mstp
+!
+vlan 110,1110
+!
+vrf instance CUSTOMERS
+!
+vrf instance DIGITAL
+!
+interface Port-Channel1
+   description LEFT-pd01-esxi_Po1
+   switchport trunk allowed vlan 110,1110
+   switchport mode trunk
+!
+interface Ethernet1
+   description LEFT-pd01-esxi_Eth1
+   mtu 9214
+   channel-group 1 mode active
+!
+interface Ethernet2
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+   description LEFT-pd01-spine-01_Eth1
+   mtu 9214
+   no switchport
+   ip address 169.254.0.1/31
+!
+interface Ethernet8
+   description LEFT-pd01-spine-02_Eth1
+   mtu 9214
+   no switchport
+   ip address 169.254.0.9/31
+!
+interface Loopback0
+   description router-id
+   ip address 10.1.1.1/32
+!
+interface Loopback1
+   description vtep
+   ip address 10.1.1.10/32
+!
+interface Management1
+!
+interface Vlan110
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.2/30
+!
+interface Vlan1110
+   mtu 9214
+   vrf CUSTOMERS
+   ip address 169.254.1.2/30
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vrf CUSTOMERS vni 22999
+   vxlan vrf DIGITAL vni 33999
+!
+ip routing
+ip routing vrf CUSTOMERS
+ip routing vrf DIGITAL
+!
+ip prefix-list LOOPBACKS seq 5 permit 10.1.1.0/24 eq 32
+!
+route-map LOOPBACKS permit 10
+   match ip address prefix-list LOOPBACKS
+!
+router bgp 4200100102
+   router-id 10.1.1.1
+   no bgp default ipv4-unicast
+   neighbor CUSTOMERS peer group
+   neighbor CUSTOMERS remote-as 4200100101
+   neighbor CUSTOMERS maximum-routes 1000
+   neighbor DIGITAL peer group
+   neighbor DIGITAL remote-as 4200100101
+   neighbor DIGITAL maximum-routes 1000
+   neighbor SPINE_OVERLAY peer group
+   neighbor SPINE_OVERLAY remote-as 4200100103
+   neighbor SPINE_OVERLAY update-source Loopback0
+   neighbor SPINE_OVERLAY allowas-in 1
+   neighbor SPINE_OVERLAY ebgp-multihop 2
+   neighbor SPINE_OVERLAY send-community
+   neighbor SPINE_UNDERLAY peer group
+   neighbor SPINE_UNDERLAY remote-as 4200100103
+   neighbor 10.1.2.1 peer group SPINE_OVERLAY
+   neighbor 10.1.2.1 description LEFT-pd01-spine-01
+   neighbor 10.1.2.2 peer group SPINE_OVERLAY
+   neighbor 10.1.2.2 description LEFT-pd01-spine-02
+   neighbor 169.254.0.0 peer group SPINE_UNDERLAY
+   neighbor 169.254.0.8 peer group SPINE_UNDERLAY
+   redistribute connected route-map LOOPBACKS
+   !
+   address-family evpn
+      neighbor SPINE_OVERLAY activate
+   !
+   address-family ipv4
+      neighbor CUSTOMERS activate
+      neighbor DIGITAL activate
+      neighbor SPINE_UNDERLAY activate
+   !
+   vrf CUSTOMERS
+      rd 10.1.1.1:22999
+      route-target import evpn 2:22999
+      route-target export evpn 2:22999
+      neighbor 169.254.1.1 peer group CUSTOMERS
+   !
+   vrf DIGITAL
+      rd 10.1.1.1:33999
+      route-target import evpn 2:33999
+      route-target export evpn 2:33999
+      neighbor 169.254.2.1 peer group DIGITAL
+!
+end

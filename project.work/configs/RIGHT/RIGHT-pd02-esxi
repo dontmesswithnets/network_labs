@@ -1,0 +1,137 @@
+
+RIGHT-pd02-esxi#sh run
+! Command: show running-config
+! device: RIGHT-pd02-esxi (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+alias wr copy run start
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+hostname RIGHT-pd02-esxi
+!
+spanning-tree mode mstp
+!
+vlan 100
+   name VM_vrf_CUSTOMERS
+!
+vlan 200
+   name VM_vrf_DIGITAL
+!
+vlan 230,240,2210,2220
+!
+vrf instance CUSTOMERS
+!
+vrf instance DIGITAL
+!
+interface Port-Channel1
+   description RIGHT-pd02-leaf-01_Po1
+   mtu 9214
+   switchport trunk allowed vlan 230,2210
+   switchport mode trunk
+!
+interface Port-Channel2
+   description RIGHT-pd02-leaf-02_Po1
+   mtu 9214
+   switchport trunk allowed vlan 240,2220
+   switchport mode trunk
+!
+interface Ethernet1
+   description RIGHT-pd02-leaf-01_Eth1
+   channel-group 1 mode active
+!
+interface Ethernet2
+   description RIGHT-pd02-leaf-02_Eth1
+   channel-group 2 mode active
+!
+interface Ethernet3
+   switchport access vlan 100
+!
+interface Ethernet4
+   switchport access vlan 200
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   description router-id
+   ip address 10.22.0.1/32
+!
+interface Management1
+!
+interface Vlan100
+   vrf CUSTOMERS
+   ip address 172.16.3.254/24
+!
+interface Vlan200
+   vrf DIGITAL
+   ip address 172.16.7.254/24
+!
+interface Vlan230
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.1/30
+!
+interface Vlan240
+   mtu 9214
+   vrf DIGITAL
+   ip address 169.254.2.5/30
+!
+interface Vlan2210
+   mtu 9214
+   vrf CUSTOMERS
+   ip address 169.254.1.1/30
+!
+interface Vlan2220
+   mtu 9214
+   vrf CUSTOMERS
+   ip address 169.254.1.5/30
+!
+ip routing
+ip routing vrf CUSTOMERS
+ip routing vrf DIGITAL
+!
+ip prefix-list CLIENT_NET seq 5 permit 172.16.3.0/24
+ip prefix-list DIGITALS_NET seq 5 permit 172.16.7.0/24
+!
+route-map CLIENT_NET permit 10
+   match ip address prefix-list CLIENT_NET
+!
+route-map DIGITALS_NET permit 10
+   match ip address prefix-list DIGITALS_NET
+!
+peer-filter LEAF
+   10 match as-range 4200200202 result accept
+!
+router bgp 4200200201
+   no bgp default ipv4-unicast
+   neighbor CUSTOMERS peer group
+   neighbor CUSTOMERS allowas-in 1
+   neighbor DIGITAL peer group
+   neighbor DIGITAL allowas-in 1
+   !
+   address-family ipv4
+      neighbor CUSTOMERS activate
+      neighbor DIGITAL activate
+   !
+   vrf CUSTOMERS
+      router-id 10.22.0.1
+      bgp listen range 169.254.1.0/29 peer-group CUSTOMERS peer-filter LEAF
+      redistribute connected route-map CLIENT_NET
+   !
+   vrf DIGITAL
+      router-id 10.22.0.1
+      bgp listen range 169.254.2.0/29 peer-group DIGITAL peer-filter LEAF
+      redistribute connected route-map DIGITALS_NET
+!
+end
