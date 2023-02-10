@@ -874,4 +874,389 @@ AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Li
 
 <br/>
 
+## _Что если мы не ищем легких путей?_
+
+_Настроить L3VPN на VxLAN EVPN фабрике, подключить через DCI два ЦОДа, разнести клиентов по разным VRF, но что, если захочется сделать еще сложнее?_
+
+### _... Внедрим Firewall'ы в фабрику!_
+
+_Все, что сделано до этого - не наш уровень. Поставим два фаервола, каждый в своей фабрике. Настроим route leaking через BGP пиринг бордеров с фаерволами в два dot1q линка. Каждый фаервол будет держать таблицу маршрутов обоих VRF'ов и будет воплощением отказоустойчивости в случае Failover'а второго. Но это тоже не сложно, а что если настроить симметричную маршрутизацию через один фаервол? Предположим, что это будут Stateful фаерволы, а значит нам нужно, чтобы трафик между двумя хостами всегда проходил одним путем, иначе фаервол дропнет пакеты_
+
+### _Итого: задача выглядит так_
+
+_На схеме ниже изображен packet-walk в зависимости от src и dst хостов_
+
+![image](packetwalk.jpg)
+
+_Проще разобрать по ходу настроек. Смысл следующий - при взаимодействии хостов одного VRF'а с хостами другого VRF'а, локальное (читай не выходя за пределы фабрики) возможно только между 172.16.0.0/23 и 172.16.4.0/23. Во ВСЕХ остальных случаях трафик должен проходить через фаервол в дата центре "RIGHT"_
+
+_Как это сделать? Есть несколько способов, но мы возьмем самый гибкий и масштабируемый - BGP Communities_
+
+* _для начала расставим фаерволы и настроим BGP с бордерами (на примере LEFT-firewall-01)_
+
+```
+interface Ethernet1
+   description LEFT-border-01
+   no switchport
+!
+interface Ethernet1.100
+   encapsulation dot1q vlan 100
+   ip address 169.254.10.1/31
+!
+interface Ethernet1.200
+   encapsulation dot1q vlan 200
+   ip address 169.254.10.3/31
+!
+interface Ethernet2
+   description LEFT-border-02
+   no switchport
+!
+interface Ethernet2.300
+   encapsulation dot1q vlan 300
+   ip address 169.254.10.5/31
+!
+interface Ethernet2.400
+   encapsulation dot1q vlan 400
+   ip address 169.254.10.7/31
+```
+
+```
+router bgp 4259905000
+   router-id 10.1.4.1
+   no bgp default ipv4-unicast
+   neighbor BORDER peer group
+   neighbor 169.254.10.0 peer group BORDER
+   neighbor 169.254.10.0 remote-as 4259840001
+   neighbor 169.254.10.0 send-community
+   neighbor 169.254.10.2 peer group BORDER
+   neighbor 169.254.10.2 remote-as 4259840002
+   neighbor 169.254.10.2 send-community
+   neighbor 169.254.10.4 peer group BORDER
+   neighbor 169.254.10.4 remote-as 4259840003
+   neighbor 169.254.10.4 send-community
+   neighbor 169.254.10.6 peer group BORDER
+   neighbor 169.254.10.6 remote-as 4259840004
+   neighbor 169.254.10.6 send-community
+   !
+   address-family ipv4
+      neighbor BORDER activate
+```
+
+_Нужно еще сделать так, чтобы при сложной маршрутизации и BGP анонсами не получилось так, что префикс, который прошел через leaking и пришел на другой фаервол, ушел через другой линк в "родной" для него VRF. Для этого запретим фаерволам передавать анонсы префиксов в VRF, в котором они есть изначально_
+
+```
+ip prefix-list DENY_VRF_CUSTOMERS seq 5 permit 172.16.0.0/23
+ip prefix-list DENY_VRF_CUSTOMERS seq 10 permit 172.16.2.0/24
+ip prefix-list DENY_VRF_CUSTOMERS seq 15 permit 172.16.3.0/24
+ip prefix-list DENY_VRF_DIGITAL seq 5 permit 172.16.4.0/23
+ip prefix-list DENY_VRF_DIGITAL seq 10 permit 172.16.6.0/24
+ip prefix-list DENY_VRF_DIGITAL seq 15 permit 172.16.7.0/24
+!
+route-map DENY_VRF_CUSTOMERS deny 10
+   match ip address prefix-list DENY_VRF_CUSTOMERS
+!
+route-map DENY_VRF_CUSTOMERS permit 20
+!
+route-map DENY_VRF_DIGITAL deny 10
+   match ip address prefix-list DENY_VRF_DIGITAL
+!
+route-map DENY_VRF_DIGITAL permit 20
+
+router bgp 4259905000
+   neighbor 169.254.10.0 route-map DENY_VRF_CUSTOMERS out
+   neighbor 169.254.10.2 route-map DENY_VRF_DIGITAL out
+   neighbor 169.254.10.4 route-map DENY_VRF_CUSTOMERS out
+   neighbor 169.254.10.6 route-map DENY_VRF_DIGITAL out
+```
+
+_Второй фаервол настрон аналогично_
+
+_Приступим к настройкам бордеров. Для начала настроим BGP пиринг с фаерволами, и главное, создадим нужные ip community, пометим отправляемые анонсы, а на втором линке по этим самым community вычислим вернувшиеся от фаервола маршруты и навесим на них, скажем, local preference 200. BGP пиринги, кстати, сделаем через locas-as no prepend replace as, чтобы не заморачиваться с allow-as in_
+
+```
+interface Ethernet4
+   description LEFT-firewall-01
+   no switchport
+
+interface Ethernet4.100
+   encapsulation dot1q vlan 100
+   vrf CUSTOMERS
+   ip address 169.254.10.0/31
+
+interface Ethernet4.200
+   encapsulation dot1q vlan 200
+   vrf DIGITAL
+   ip address 169.254.10.2/31
+
+ip prefix-list LEFT_VRF_CUSTOMERS seq 5 permit 172.16.0.0/23
+ip prefix-list LEFT_VRF_DIGITAL seq 5 permit 172.16.4.0/23
+ip prefix-list RIGHT_VRF_CUSTOMERS seq 5 permit 172.16.2.0/23 le 24
+ip prefix-list RIGHT_VRF_DIGITAL seq 5 permit 172.16.6.0/23 le 24
+
+ip community-list LEFT_VRF_CUSTOMERS permit 26:17664
+ip community-list LEFT_VRF_DIGITAL permit 26:17704
+ip community-list RIGHT_VRF_CUSTOMERS permit 26:17684
+ip community-list RIGHT_VRF_DIGITAL permit 26:17724
+
+route-map CUSTOMERS_ACCEPT permit 10
+   match community LEFT_VRF_CUSTOMERS
+   set local-preference 200
+
+route-map CUSTOMERS_ACCEPT permit 20
+
+route-map CUSTOMERS_SEND permit 10
+   match ip address prefix-list LEFT_VRF_CUSTOMERS
+   set community community-list LEFT_VRF_CUSTOMERS
+
+route-map CUSTOMERS_SEND permit 20
+   match ip address prefix-list RIGHT_VRF_CUSTOMERS
+
+route-map DIGITAL_ACCEPT permit 10
+   match community LEFT_VRF_DIGITAL
+   set local-preference 200
+
+route-map DIGITAL_ACCEPT permit 20
+
+route-map DIGITAL_SEND permit 10
+   match ip address prefix-list LEFT_VRF_DIGITAL
+   set community community-list LEFT_VRF_DIGITAL
+
+route-map DIGITAL_SEND permit 20
+   match ip address prefix-list RIGHT_VRF_DIGITAL
+
+router bgp 4200100001
+   neighbor FIREWALL peer group
+   neighbor FIREWALL remote-as 4259905000
+
+   address-family ipv4
+      neighbor FIREWALL activate
+   
+   vrf CUSTOMERS
+      neighbor 169.254.10.1 peer group FIREWALL
+      neighbor 169.254.10.1 local-as 4259840001 no-prepend replace-as
+      neighbor 169.254.10.1 route-map DIGITAL_ACCEPT in
+      neighbor 169.254.10.1 route-map CUSTOMERS_SEND out
+      neighbor 169.254.10.1 send-community
+      aggregate-address 172.16.2.0/23 summary-only
+   !
+   vrf DIGITAL
+      neighbor 169.254.10.3 peer group FIREWALL
+      neighbor 169.254.10.3 local-as 4259840002 no-prepend replace-as
+      neighbor 169.254.10.3 route-map CUSTOMERS_ACCEPT in
+      neighbor 169.254.10.3 route-map DIGITAL_SEND out
+      neighbor 169.254.10.3 send-community
+      aggregate-address 172.16.6.0/23 summary-only
+```
+
+_На остальных трех бордерах логика такая же - передать маршруты на фаервол, получить их обратно через другой линк и навесить local preference выше стандартного. ВАЖНО: на бордерах LEFT-border-01 и LEFT-border-02 это нужно сделать лишь для префиксов 172.16.0.0/23 и 172.16.4.0/23. Иначе не получится реализовать задумку с симметричным traffic flow_
+
+_Теперь осталось применить политики community между анонсами из дата центра RIGHT в дата центр LEFT_
+
+* _отдаем из RIGHT в LEFT_
+
+```
+ip prefix-list CUSTOMERS_DC_OUT seq 5 permit 172.16.2.0/23
+ip prefix-list CUSTOMERS_DC_OUT seq 10 permit 172.16.6.0/23
+
+ip prefix-list DIGITAL_DC_OUT seq 5 permit 172.16.6.0/23
+ip prefix-list DIGITAL_DC_OUT seq 10 permit 172.16.2.0/23
+
+ip community-list RIGHT_VRF_CUSTOMERS permit 26:17684
+ip community-list RIGHT_VRF_DIGITAL permit 26:17724
+
+route-map CUSTOMERS_DC_OUT permit 10
+   match ip address prefix-list CUSTOMERS_DC_OUT
+   set community community-list RIGHT_VRF_CUSTOMERS
+
+route-map CUSTOMERS_DC_OUT permit 20
+
+route-map DIGITAL_DC_OUT permit 10
+   match ip address prefix-list DIGITAL_DC_OUT
+   set community community-list RIGHT_VRF_DIGITAL
+
+route-map DIGITAL_DC_OUT permit 20
+
+router bgp 4200200001
+   neighbor Direct_Connect_Customer route-map CUSTOMERS_DC_OUT out
+   neighbor Direct_Connect_Customer send-community
+   neighbor Direct_Connect_Customer maximum-routes 1000
+
+   neighbor Direct_Connect_Digital route-map DIGITAL_DC_OUT out
+   neighbor Direct_Connect_Digital send-community
+   neighbor Direct_Connect_Digital maximum-routes 1000
+```
+
+* _принимаем в LEFT из RIGHT_
+
+```
+ip community-list RIGHT_VRF_CUSTOMERS permit 26:17684
+ip community-list RIGHT_VRF_DIGITAL permit 26:17724
+
+route-map CUSTOMERS_FROM_DC permit 10
+   match community RIGHT_VRF_CUSTOMERS
+   set local-preference 200
+
+route-map CUSTOMERS_FROM_DC permit 20
+
+route-map DIGITAL_FROM_DC permit 10
+   match community RIGHT_VRF_DIGITAL
+   set local-preference 200
+
+route-map DIGITAL_FROM_DC permit 20
+
+router bgp 4200100001
+   neighbor Direct_Connect_Customer route-map CUSTOMERS_FROM_DC in
+   neighbor Direct_Connect_Customer send-community
+   neighbor Direct_Connect_Customer maximum-routes 1000
+
+   neighbor Direct_Connect_Digital route-map DIGITAL_FROM_DC in
+   neighbor Direct_Connect_Digital send-community
+   neighbor Direct_Connect_Digital maximum-routes 1000
+```
+
+* _все готово, можем проверять_
+
+_Выполним трассировку с VM в VRF "CUSTOMERS" до ВМ в VRF "DIGITAL", которая находится на этом же "гипервизоре", то есть в этом же ЦОДе_
+
+```
+VPCS> show ip
+
+NAME        : VPCS[1]
+IP/MASK     : 172.16.1.200/23
+GATEWAY     : 172.16.1.254
+DNS         :
+MAC         : 00:50:79:66:68:16
+LPORT       : 20000
+RHOST:PORT  : 127.0.0.1:30000
+MTU         : 1500
+
+VPCS> trace 172.16.5.200
+trace to 172.16.5.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.1.254   2.763 ms  3.126 ms  2.806 ms
+ 2   169.254.1.2   9.109 ms  7.807 ms  7.331 ms
+ 3   169.254.100.1   20.791 ms  19.003 ms  16.198 ms
+ 4   169.254.10.1   18.700 ms  20.265 ms  18.721 ms
+ 5   169.254.10.2   22.358 ms  21.229 ms  20.575 ms
+ 6   169.254.2.2   32.562 ms  30.162 ms  29.413 ms
+ 7   169.254.2.1   40.441 ms  31.978 ms  35.266 ms
+ 8   *172.16.5.200   41.335 ms (ICMP type:3, code:3, Destination port unreachable)
+```
+
+_Как видим, трафик идет через 169.254.10.1 и 169.254.10.2. Это интерфейсы LEFT-firewall-01. А теперь попробуем до двух других ВМ в VRF "DIGITAL", но тех, что находятся в другом ЦОДе_
+
+```
+VPCS> trace 172.16.6.200
+trace to 172.16.6.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.1.254   3.190 ms  1.976 ms  2.128 ms
+ 2   169.254.1.2   8.120 ms  6.560 ms  6.833 ms
+ 3   169.254.100.5   17.316 ms  15.703 ms  17.411 ms
+ 4   169.254.100.6   26.570 ms  26.535 ms  24.526 ms
+ 5   169.254.20.5   31.412 ms  29.054 ms  33.168 ms
+ 6   169.254.20.2   32.258 ms  33.908 ms  32.840 ms
+ 7   169.254.2.6   40.370 ms  40.388 ms  53.654 ms
+ 8   169.254.2.1   50.180 ms  57.490 ms  48.662 ms
+
+VPCS> trace 172.16.7.200
+trace to 172.16.7.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.1.254   3.352 ms  2.066 ms  1.816 ms
+ 2   169.254.1.2   10.746 ms  7.030 ms  6.957 ms
+ 3   169.254.100.5   15.198 ms  15.290 ms  15.438 ms
+ 4   169.254.100.6   21.679 ms  28.405 ms  28.581 ms
+ 5   169.254.20.5   39.006 ms  31.420 ms  33.518 ms
+ 6   169.254.20.2   33.812 ms  30.960 ms  30.533 ms
+ 7   169.254.2.6   39.822 ms  51.865 ms  43.309 ms
+ 8   169.254.2.1   50.271 ms  49.321 ms  46.741 ms
+```
+
+_Как видим, в этот раз, трафик пошел через 169.254.20.5 и 169.254.20.2, это интерфейсы RIGHT-firewall-01. Чего и следовало ожидать_
+
+_Попробуем с другой стороны. С ВМ в VRF "DIGITAL выполним трассировку в трех вариантах:_
+
+* _до ВМ в VRF "CUSTOMERS" в этом же ЦОДе_
+* _до ВМ в VRF "CUSTOMERS" в другом ЦОДе_
+* _до ВМ в VRF "DIGITAL" в другом ЦОДе (то есть ожидаем, что трафик минует firewall)_
+
+```
+PC1 : 172.16.6.200 255.255.255.0 gateway 172.16.6.254
+
+VPCS> trace 172.16.3.200
+trace to 172.16.3.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.6.254   2.168 ms  2.423 ms  1.930 ms
+ 2   169.254.2.2   7.030 ms  7.346 ms  6.728 ms
+ 3   169.254.200.2   18.360 ms  28.943 ms  15.535 ms
+ 4   169.254.20.3   19.388 ms  20.227 ms  24.133 ms
+ 5   169.254.20.0   26.765 ms  26.246 ms  26.957 ms
+ 6   169.254.1.6   34.105 ms  30.332 ms  46.232 ms
+ 7   169.254.1.1   46.487 ms  37.311 ms  38.763 ms
+ 8   *172.16.3.200   47.633 ms (ICMP type:3, code:3, Destination port unreachable)
+
+VPCS> trace 172.16.1.200
+trace to 172.16.1.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.6.254   3.161 ms  2.037 ms  2.169 ms
+ 2   169.254.2.2   8.363 ms  8.748 ms  6.392 ms
+ 3   169.254.200.6   16.801 ms  16.081 ms  17.816 ms
+ 4   169.254.20.7   20.281 ms  21.517 ms  21.841 ms
+ 5   169.254.20.0   23.295 ms  22.994 ms  28.260 ms
+ 6   169.254.100.1   28.392 ms  30.293 ms  29.398 ms
+ 7   169.254.1.6   39.757 ms  39.605 ms  48.776 ms
+ 8   169.254.1.1   47.450 ms  50.277 ms  47.027 ms
+
+VPCS> trace 172.16.5.200
+trace to 172.16.5.200, 8 hops max, press Ctrl+C to stop
+ 1   172.16.6.254   2.798 ms  2.085 ms  1.660 ms
+ 2   169.254.2.2   6.977 ms  6.332 ms  6.189 ms
+ 3   169.254.200.6   16.127 ms  15.523 ms  15.320 ms
+ 4   169.254.200.5   23.565 ms  23.704 ms  28.877 ms
+ 5   169.254.2.2   35.802 ms  31.798 ms  33.389 ms
+ 6   169.254.2.1   48.185 ms  40.614 ms  42.066 ms
+ 7   *172.16.5.200   46.884 ms (ICMP type:3, code:3, Destination port unreachable)
+```
+
+_Все работает согласно ожиданиям_
+
+_В случае Failover'а RIGHT-firewall-01 трафик без потерь уйдет на оставшийся LEFT-firewall-01 и наоборот, так как на бордерах есть маршруты в оба фаервола, просто один из них с local-preference 200_
+
+```
+BGP routing table information for VRF CUSTOMERS
+Router identifier 169.254.100.1, local AS number 4200100001
+Route status codes: s - suppressed, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+ * >      172.16.0.0/23          10.1.1.20             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.0.0/23          10.1.1.20             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.0.0/23          10.1.1.10             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.0.0/23          10.1.1.10             0       -          100     0       4200100103 4200100102 4200100101 i
+ * >      172.16.2.0/23          169.254.100.2         0       -          200     0       4200200001 i
+ * >      172.16.4.0/23          169.254.10.1          0       -          200     0       4259905000 4259840002 4200100103 4200100102 4200100101 i
+ * >      172.16.6.0/23          169.254.100.2         0       -          200     0       4200200001 4292673500 4292608002 i
+ *        172.16.6.0/23          169.254.10.1          0       -          100     0       4259905000 4259840002 4200200001 i
+BGP routing table information for VRF DIGITAL
+Router identifier 169.254.200.1, local AS number 4200100001
+Route status codes: s - suppressed, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+ * >      172.16.0.0/23          169.254.10.3          0       -          200     0       4259905000 4259840001 4200100103 4200100102 4200100101 i
+ * >      172.16.2.0/23          169.254.200.2         0       -          200     0       4200200001 4292673500 4292608001 i
+ *        172.16.2.0/23          169.254.10.3          0       -          100     0       4259905000 4259840001 4200200001 i
+ * >      172.16.4.0/23          10.1.1.10             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.4.0/23          10.1.1.10             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.4.0/23          10.1.1.20             0       -          100     0       4200100103 4200100102 4200100101 i
+ *        172.16.4.0/23          10.1.1.20             0       -          100     0       4200100103 4200100102 4200100101 i
+ * >      172.16.6.0/23          169.254.200.2         0       -          200     0       4200200001 i
+```
+
+## _На этом все!_
+
+<br/>
+
 _[Ссылка](https://github.com/dontmesswithnets/study_otus/tree/main/project.work/configs) на конфиги_
