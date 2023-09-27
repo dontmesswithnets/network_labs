@@ -1,0 +1,92 @@
+PE-02#sh run
+! Command: show running-config
+! device: PE-02 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname PE-02
+!
+spanning-tree mode mstp
+!
+vrf instance CLIENT
+!
+interface Ethernet1
+   no switchport
+   ip address 10.3.4.4/24
+   mpls ldp interface
+   ip ospf network point-to-point
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   vrf CLIENT
+   ip address 20.0.0.2/30
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 4.4.4.4/32
+   mpls ldp interface
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+ip routing
+ip routing vrf CLIENT
+!
+ip prefix-list client seq 5 permit 192.168.1.0/24 eq 24
+!
+mpls ip
+!
+mpls ldp
+   router-id 4.4.4.4
+   transport-address interface Loopback0
+   interface disabled default
+   no shutdown
+!
+route-map client permit 10
+   match ip address prefix-list client
+!
+router bgp 100
+   router-id 4.4.4.4
+   no bgp default ipv4-unicast
+   neighbor 1.1.1.1 remote-as 100
+   neighbor 1.1.1.1 update-source Loopback0
+   neighbor 1.1.1.1 send-community
+   !
+   address-family vpn-ipv4
+      neighbor 1.1.1.1 activate
+   !
+   vrf CLIENT
+      rd 4.4.4.4:100
+      route-target import vpn-ipv4 100:100
+      route-target export vpn-ipv4 100:100
+      neighbor 20.0.0.1 remote-as 300
+      neighbor 20.0.0.1 route-map client in
+      neighbor 20.0.0.1 maximum-routes 10
+      !
+      address-family ipv4
+         neighbor 20.0.0.1 activate
+!
+router ospf 1
+   router-id 4.4.4.4
+   max-lsa 12000
+   mpls ldp sync default
+!
+end

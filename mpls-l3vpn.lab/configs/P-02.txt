@@ -1,0 +1,65 @@
+P-02#sh run
+! Command: show running-config
+! device: P-02 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname P-02
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+   ip address 10.2.3.3/24
+   mpls ldp interface
+   ip ospf network point-to-point
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   ip address 10.3.4.3/24
+   mpls ldp interface
+   ip ospf network point-to-point
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 3.3.3.3/32
+   mpls ldp interface
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+ip routing
+!
+mpls ip
+!
+mpls ldp
+   router-id 3.3.3.3
+   transport-address interface Loopback0
+   interface disabled default
+   no shutdown
+!
+router ospf 1
+   router-id 3.3.3.3
+   max-lsa 12000
+   mpls ldp sync default
+!
+end
