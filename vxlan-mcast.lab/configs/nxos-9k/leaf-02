@@ -1,0 +1,162 @@
+leaf-02# sh run
+
+!Command: show running-config
+!Running configuration last done at: Mon Oct 16 08:08:48 2023
+!Time: Mon Oct 16 09:08:14 2023
+
+version 9.3(10) Bios:version
+hostname leaf-02
+vdc leaf-02 id 1
+  limit-resource vlan minimum 16 maximum 4094
+  limit-resource vrf minimum 2 maximum 4096
+  limit-resource port-channel minimum 0 maximum 511
+  limit-resource u4route-mem minimum 248 maximum 248
+  limit-resource u6route-mem minimum 96 maximum 96
+  limit-resource m4route-mem minimum 58 maximum 58
+  limit-resource m6route-mem minimum 8 maximum 8
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature pim
+feature fabric forwarding
+feature interface-vlan
+feature vn-segment-vlan-based
+feature nv overlay
+
+no password strength-check
+username admin password 5 $5$FOMBGJ$IlSxpCi31hZGJbqQckNpYrdSEcXaz6esWB8F/ZqqIv.
+ role network-admin
+ip domain-lookup
+copp profile strict
+snmp-server user admin network-admin auth md5 054AAF65AF2F14777774F9B3ABE53D8AD8
+AD priv 331CAC6ECC7818287623B3F0F5E563F9A48C localizedV2key
+rmon event 1 log trap public description FATAL(1) owner PMON@FATAL
+rmon event 2 log trap public description CRITICAL(2) owner PMON@CRITICAL
+rmon event 3 log trap public description ERROR(3) owner PMON@ERROR
+rmon event 4 log trap public description WARNING(4) owner PMON@WARNING
+rmon event 5 log trap public description INFORMATION(5) owner PMON@INFO
+
+fabric forwarding anycast-gateway-mac aabb.ccdd.eeff
+ip pim rp-address 3.3.3.3 group-list 224.0.0.0/4
+ip pim ssm range 232.0.0.0/8
+vlan 1,10,20,40,60,77,99
+vlan 10
+  vn-segment 1000
+vlan 20
+  vn-segment 2000
+vlan 40
+  vn-segment 4000
+vlan 60
+  vn-segment 6000
+vlan 77
+  vn-segment 777
+vlan 99
+  vn-segment 999
+
+vrf context PROD
+  vni 999
+  rd 2.2.2.2:999
+  address-family ipv4 unicast
+    route-target import 1:999
+    route-target import 1:999 evpn
+    route-target export 1:999
+    route-target export 1:999 evpn
+vrf context QWERTY
+  vni 777
+  rd 2.2.2.2:777
+  address-family ipv4 unicast
+    route-target import 1:777
+    route-target import 1:777 evpn
+    route-target export 1:777
+    route-target export 1:777 evpn
+vrf context management
+
+interface Vlan1
+
+interface Vlan40
+  no shutdown
+  vrf member PROD
+  ip address 20.0.0.254/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan60
+  no shutdown
+  vrf member QWERTY
+  ip address 99.0.0.254/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan77
+  no shutdown
+  vrf member QWERTY
+  ip forward
+
+interface Vlan99
+  no shutdown
+  vrf member PROD
+  ip forward
+
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  member vni 777 associate-vrf
+  member vni 999 associate-vrf
+  member vni 1000
+    ingress-replication protocol bgp
+  member vni 2000
+    mcast-group 225.1.1.10
+  member vni 4000
+    ingress-replication protocol bgp
+  member vni 6000
+    mcast-group 225.2.2.20
+
+interface Ethernet1/1
+  no switchport
+  ip address 169.254.0.3/31
+  ip ospf network point-to-point
+  ip router ospf 1 area 0.0.0.0
+  ip pim sparse-mode
+  no shutdown
+
+interface Ethernet1/2
+  switchport mode trunk
+  switchport trunk allowed vlan 10,20,40,60
+
+interface mgmt0
+  vrf member management
+
+interface loopback0
+  ip address 2.2.2.2/32
+  ip router ospf 1 area 0.0.0.0
+  ip pim sparse-mode
+
+interface loopback1
+  ip address 2.2.2.222/32
+  ip router ospf 1 area 0.0.0.0
+  ip pim sparse-mode
+icam monitor scale
+
+line console
+line vty
+boot nxos bootflash:/nxos.9.3.10.bin sup-1
+router ospf 1
+  router-id 2.2.2.2
+  log-adjacency-changes
+router bgp 1
+  router-id 2.2.2.2
+  neighbor 3.3.3.3
+    remote-as 1
+    update-source loopback0
+    timers 5 15
+    address-family l2vpn evpn
+      send-community extended
+evpn
+  vni 1000 l2
+    rd 2.2.2.222:1000
+    route-target import 1:1000
+    route-target export 1:1000
+  vni 2000 l2
+    rd 2.2.2.222:2000
+    route-target import 1:2000
+    route-target export 1:2000
