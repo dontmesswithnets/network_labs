@@ -456,4 +456,4 @@ _Сам пакет в дампе выглядит следующим образ�
 
 ![image2](Wireshark.jpg)
 
-_Вот так просто и незатейливо работает VPLS. [Конфиги]([configs](https://github.com/dontmesswithnets/study_otus/tree/main/vpls-l2vpn.lab/configs)) CSR_
+_Вот так просто и незатейливо работает VPLS._ [Конфиги](https://github.com/dontmesswithnets/study_otus/tree/main/vpls-l2vpn.lab/configs) CSR
