@@ -1,0 +1,191 @@
+VE-02#sh run
+Building configuration...
+
+Current configuration : 4474 bytes
+!
+! Last configuration change at 10:00:25 UTC Mon Oct 23 2023
+!
+version 16.9
+service timestamps debug datetime msec
+service timestamps log datetime msec
+platform qfp utilization monitor load 80
+no platform punt-keepalive disable-kernel-core
+platform console serial
+!
+hostname VE-02
+!
+boot-start-marker
+boot-end-marker
+!
+!
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+ip admission watch-list expiry-time 0
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+subscriber templating
+!
+!
+!
+!
+!
+multilink bundle-name authenticated
+l2vpn vfi context VPLS
+ vpn id 1234
+ autodiscovery bgp signaling bgp
+  ve id 51
+  ve range 99
+  rd 10.0.0.3:222
+  route-target export 5678:4321
+  route-target import 5678:4321
+  no auto-route-target
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree extend system-id
+!
+!
+!
+!
+redundancy
+bridge-domain 1
+ member GigabitEthernet2 service-instance 10
+ member vfi VPLS
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 10.0.0.3 255.255.255.255
+ ip ospf 1 area 0.0.0.0
+!
+interface GigabitEthernet1
+ ip address 169.254.0.3 255.255.255.254
+ ip ospf network point-to-point
+ ip ospf 1 area 0.0.0.0
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet2
+ no ip address
+ negotiation auto
+ service instance 10 ethernet
+  encapsulation default
+ !
+!
+interface GigabitEthernet3
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet4
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+router ospf 1
+ router-id 10.0.0.3
+ mpls ldp sync
+!
+router bgp 1
+ template peer-session VPLS
+  remote-as 1
+  update-source Loopback0
+  timers 5 15
+ exit-peer-session
+ !
+ bgp router-id 10.0.0.3
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ neighbor 10.0.0.1 inherit peer-session VPLS
+ !
+ address-family l2vpn vpls
+  neighbor 10.0.0.1 activate
+  neighbor 10.0.0.1 send-community both
+  neighbor 10.0.0.1 suppress-signaling-protocol ldp
+ exit-address-family
+!
+ip forward-protocol nd
+ip http server
+ip http authentication local
+ip http secure-server
+!
+!
+!
+!
+mpls ldp router-id Loopback0 force
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ login
+!
+!
+!
+!
+!
+!
+end
