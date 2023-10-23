@@ -20,6 +20,7 @@
 * _[Настройка EVPN Multihoming как альтернативы VPC/MLAG](https://github.com/dontmesswithnets/study_otus/tree/main/multihoming.lab)_
 * _[Настройка VxLAN EVPN Multisite для объединения нескольких фабрик](https://github.com/dontmesswithnets/study_otus/tree/main/multisite.lab)_
 * _[Настройка DCI VxLAN EVPN + L3VPN](https://github.com/dontmesswithnets/study_otus/tree/main/project.work)_
+* _[Настройка L2VPN VPLS на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/vpls-l2vpn.lab)_
 
 <br/>
 
