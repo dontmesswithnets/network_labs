@@ -1,7 +1,6 @@
 # _Дизайн сетей ЦОД_
 
-## _В этом публичном репозитории я выполняю домашние задания по учебному курсу, посвященному проектированию сетей в центрах обработки данных от [OTUS](https://otus.ru/)_
-
+## _Этот публичный репозиторий я создавал для выполнения домашних заданий по учебному курсу, посвященному дизайну сетей ЦОД. Курс давно закончен, новые знания опробованы на реальных кейсах. Но привычка осваивать новые технологии и закрепять их в GitHub осталась. Рад видеть Вас на моей страничке_
 <br/>
 
 ![image](data_center.jpeg)
@@ -21,15 +20,12 @@
 * _[Настройка VxLAN EVPN Multisite для объединения нескольких фабрик](https://github.com/dontmesswithnets/study_otus/tree/main/multisite.lab)_
 * _[Настройка DCI VxLAN EVPN + L3VPN](https://github.com/dontmesswithnets/study_otus/tree/main/project.work)_
 * _[Настройка L2VPN VPLS на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/vpls-l2vpn.lab)_
+* _[Настройка L3VPN MPLS на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/mpls-l3vpn.lab)_
 
 <br/>
 
 ![image](mr_robot.jpg)
 
-### _Обо мне: сетевой инженер в облаке SberCloud на базе IaaS_
+### _Обо мне: сетевой инженер в облаке SberCloud_
 
 ### _Для меня опыт работы в DC начался в феврале 2022 года, до этого работал в R&S_
-
-<br/>
-
-### _Ссылка на сам [курс](https://otus.ru/lessons/network_design/)_
