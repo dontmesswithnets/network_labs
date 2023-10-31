@@ -1,0 +1,198 @@
+Router#sh run
+Building configuration...
+
+Current configuration : 4622 bytes
+!
+! Last configuration change at 06:49:24 UTC Tue Oct 31 2023
+!
+version 16.9
+service timestamps debug datetime msec
+service timestamps log datetime msec
+platform qfp utilization monitor load 80
+no platform punt-keepalive disable-kernel-core
+platform console serial
+!
+hostname Router
+!
+boot-start-marker
+boot-end-marker
+!
+!
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+ip admission watch-list expiry-time 0
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+subscriber templating
+!
+!
+!
+!
+!
+multilink bundle-name authenticated
+l2vpn evpn
+ replication-type ingress
+ mpls label mode per-ce
+ router-id Loopback0
+!
+l2vpn evpn instance 1 vlan-based
+ rd 6.6.6.6:100
+ route-target export 100:100
+ route-target import 100:100
+ no auto-route-target
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree extend system-id
+!
+!
+!
+!
+redundancy
+bridge-domain 1
+ member Port-channel1 service-instance 1
+ member evpn-instance 1
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 6.6.6.6 255.255.255.255
+!
+interface Port-channel1
+ no ip address
+ no negotiation auto
+ no mop enabled
+ no mop sysid
+ evpn ethernet-segment 1
+  identifier type 3 system-mac 0022.0022.0022
+  redundancy all-active
+ service instance 1 ethernet
+  encapsulation dot1q 100
+ !
+!
+interface GigabitEthernet1
+ ip address 169.254.2.1 255.255.255.254
+ ip ospf network point-to-point
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet2
+ no ip address
+ negotiation auto
+ no mop enabled
+ no mop sysid
+ channel-group 1
+!
+interface GigabitEthernet3
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet4
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+router ospf 1
+ router-id 6.6.6.6
+ network 6.6.6.6 0.0.0.0 area 0.0.0.0
+ network 169.254.2.0 0.0.0.1 area 0.0.0.0
+ mpls ldp sync
+!
+router bgp 1
+ bgp router-id 6.6.6.6
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ neighbor 4.4.4.4 remote-as 1
+ neighbor 4.4.4.4 update-source Loopback0
+ !
+ address-family l2vpn evpn
+  neighbor 4.4.4.4 activate
+  neighbor 4.4.4.4 send-community both
+ exit-address-family
+!
+ip forward-protocol nd
+ip http server
+ip http authentication local
+ip http secure-server
+!
+!
+!
+!
+mpls ldp router-id Loopback0 force
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ login
+!
+!
+!
+!
+!
+!
+end

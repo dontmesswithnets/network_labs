@@ -1,0 +1,190 @@
+Route-Reflector#sh run
+Building configuration...
+
+Current configuration : 4755 bytes
+!
+! Last configuration change at 06:48:29 UTC Tue Oct 31 2023
+!
+version 16.9
+service timestamps debug datetime msec
+service timestamps log datetime msec
+platform qfp utilization monitor load 80
+no platform punt-keepalive disable-kernel-core
+platform console serial
+!
+hostname Route-Reflector
+!
+boot-start-marker
+boot-end-marker
+!
+!
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+ip admission watch-list expiry-time 0
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+subscriber templating
+!
+!
+!
+!
+!
+multilink bundle-name authenticated
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree extend system-id
+!
+!
+!
+!
+redundancy
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 4.4.4.4 255.255.255.255
+!
+interface GigabitEthernet1
+ ip address 169.254.0.0 255.255.255.254
+ ip ospf network point-to-point
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet2
+ ip address 169.254.0.2 255.255.255.254
+ ip ospf network point-to-point
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet3
+ ip address 169.254.0.4 255.255.255.254
+ ip ospf network point-to-point
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet4
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+router ospf 1
+ router-id 4.4.4.4
+ network 4.4.4.4 0.0.0.0 area 0.0.0.0
+ network 169.254.0.0 0.0.0.7 area 0.0.0.0
+ mpls ldp sync
+!
+router bgp 1
+ template peer-session MPLS
+  remote-as 1
+  update-source Loopback0
+ exit-peer-session
+ !
+ bgp router-id 4.4.4.4
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ neighbor 1.1.1.1 inherit peer-session MPLS
+ neighbor 2.2.2.2 inherit peer-session MPLS
+ neighbor 6.6.6.6 inherit peer-session MPLS
+ neighbor 7.7.7.7 inherit peer-session MPLS
+ !
+ address-family l2vpn evpn
+  neighbor 1.1.1.1 activate
+  neighbor 1.1.1.1 send-community both
+  neighbor 1.1.1.1 route-reflector-client
+  neighbor 2.2.2.2 activate
+  neighbor 2.2.2.2 send-community both
+  neighbor 2.2.2.2 route-reflector-client
+  neighbor 6.6.6.6 activate
+  neighbor 6.6.6.6 send-community both
+  neighbor 6.6.6.6 route-reflector-client
+  neighbor 7.7.7.7 activate
+  neighbor 7.7.7.7 send-community both
+  neighbor 7.7.7.7 route-reflector-client
+ exit-address-family
+!
+ip forward-protocol nd
+ip http server
+ip http authentication local
+ip http secure-server
+!
+!
+!
+!
+mpls ldp router-id Loopback0 force
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ login
+!
+!
+!
+!
+!
+!
+end
