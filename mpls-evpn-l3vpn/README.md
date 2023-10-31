@@ -80,7 +80,7 @@ interface GigabitEthernet2
   encapsulation untagged
 ```
 
-* brdige домен на каждом из PE
+* bridge домен на каждом из PE
 
 ```
 bridge-domain 10
@@ -172,7 +172,7 @@ router bgp 1
  exit-address-family
 ```
 
-* Теперь смотри что прилетело (на PE-01)
+* Теперь смотрим что прилетело (на PE-01)
 
 ```
 PE-01#show bgp l2vpn evpn
