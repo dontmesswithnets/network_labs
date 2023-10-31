@@ -1,0 +1,198 @@
+PE-01#sh run
+Building configuration...
+
+Current configuration : 4638 bytes
+!
+! Last configuration change at 12:18:38 UTC Tue Oct 31 2023
+!
+version 16.9
+service timestamps debug datetime msec
+service timestamps log datetime msec
+platform qfp utilization monitor load 80
+no platform punt-keepalive disable-kernel-core
+platform console serial
+!
+hostname PE-01
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition RED
+ rd 2.2.2.2:10
+ !
+ address-family ipv4
+  route-target export 100:100
+  route-target import 100:100
+  route-target export 100:100 stitching
+  route-target import 100:100 stitching
+ exit-address-family
+!
+!
+no aaa new-model
+!
+!
+!
+!
+!
+!
+!
+ip admission watch-list expiry-time 0
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+subscriber templating
+!
+!
+!
+!
+!
+multilink bundle-name authenticated
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree extend system-id
+!
+!
+!
+!
+redundancy
+bridge-domain 10
+ member GigabitEthernet2 service-instance 10
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.255
+!
+interface GigabitEthernet1
+ ip address 169.254.0.2 255.255.255.252
+ ip ospf network point-to-point
+ negotiation auto
+ mpls ip
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet2
+ no ip address
+ negotiation auto
+ no mop enabled
+ no mop sysid
+ service instance 10 ethernet
+  encapsulation untagged
+ !
+!
+interface GigabitEthernet3
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface GigabitEthernet4
+ no ip address
+ shutdown
+ negotiation auto
+ no mop enabled
+ no mop sysid
+!
+interface BDI10
+ mac-address 0000.0000.0010
+ vrf forwarding RED
+ ip address 10.0.0.254 255.255.255.0
+ no mop enabled
+ no mop sysid
+!
+router ospf 1
+ router-id 2.2.2.2
+ network 2.2.2.2 0.0.0.0 area 0.0.0.0
+ network 169.254.0.0 0.0.0.3 area 0.0.0.0
+ mpls ldp sync
+!
+router bgp 1
+ bgp router-id 2.2.2.2
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ neighbor 3.3.3.3 remote-as 1
+ neighbor 3.3.3.3 update-source Loopback0
+ !
+ address-family l2vpn evpn
+  neighbor 3.3.3.3 activate
+  neighbor 3.3.3.3 send-community both
+ exit-address-family
+ !
+ address-family ipv4 vrf RED
+  advertise l2vpn evpn
+  redistribute connected
+ exit-address-family
+!
+ip forward-protocol nd
+ip http server
+ip http authentication local
+ip http secure-server
+!
+!
+!
+!
+mpls ldp router-id Loopback0 force
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+line con 0
+ stopbits 1
+line vty 0 4
+ login
+!
+!
+!
+!
+!
+!
+end
