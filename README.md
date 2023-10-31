@@ -21,6 +21,7 @@
 * _[Настройка DCI VxLAN EVPN + L3VPN](https://github.com/dontmesswithnets/study_otus/tree/main/project.work)_
 * _[Настройка L2VPN VPLS на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/vpls-l2vpn.lab)_
 * _[Настройка L3VPN MPLS на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/mpls-l3vpn.lab)_
+* _[Настройка MPLS EVPN Multihoming на Cisco CSR](https://github.com/dontmesswithnets/study_otus/tree/main/mpls-evpn-multihoming.lab)_
 
 <br/>
 
