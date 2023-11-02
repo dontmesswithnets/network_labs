@@ -1,0 +1,69 @@
+R5#sh run
+! Command: show running-config
+! device: R5 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname R5
+!
+spanning-tree mode mstp
+!
+interface Ethernet1
+   no switchport
+   ip address 10.5.6.5/24
+   isis enable UNDERLAY
+   isis circuit-type level-2
+   isis network point-to-point
+!
+interface Ethernet2
+   no switchport
+   ip address 10.3.5.5/24
+   isis enable UNDERLAY
+   isis circuit-type level-2
+   isis network point-to-point
+!
+interface Ethernet3
+   no switchport
+   ip address 10.4.5.5/24
+   isis enable UNDERLAY
+   isis circuit-type level-2
+   isis network point-to-point
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 5.5.5.5/32
+   node-segment ipv4 index 5
+   isis enable UNDERLAY
+   isis passive
+!
+interface Management1
+!
+ip routing
+!
+mpls ip
+!
+router isis UNDERLAY
+   net 49.0001.0005.0005.0005.00
+   log-adjacency-changes
+   !
+   address-family ipv4 unicast
+   !
+   segment-routing mpls
+      no shutdown
+!
+end

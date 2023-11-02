@@ -1,0 +1,89 @@
+R6#sh run
+! Command: show running-config
+! device: R6 (vEOS-lab, EOS-4.27.3F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+hostname R6
+!
+spanning-tree mode mstp
+!
+vrf instance RED
+!
+interface Ethernet1
+   no switchport
+   ip address 10.4.6.6/24
+   isis enable UNDERLAY
+   isis circuit-type level-2
+   isis network point-to-point
+!
+interface Ethernet2
+   no switchport
+   ip address 10.5.6.6/24
+   isis enable UNDERLAY
+   isis circuit-type level-2
+   isis network point-to-point
+!
+interface Ethernet3
+   no switchport
+   vrf RED
+   ip address 20.0.0.1/30
+!
+interface Ethernet4
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 6.6.6.6/32
+   node-segment ipv4 index 6
+   isis enable UNDERLAY
+   isis passive
+!
+interface Management1
+!
+ip routing
+ip routing vrf RED
+!
+mpls ip
+!
+router bgp 100
+   router-id 6.6.6.6
+   no bgp default ipv4-unicast
+   neighbor 1.1.1.1 remote-as 100
+   neighbor 1.1.1.1 update-source Loopback0
+   neighbor 1.1.1.1 send-community extended
+   !
+   address-family vpn-ipv4
+      neighbor 1.1.1.1 activate
+   !
+   vrf RED
+      rd 6.6.6.6:100
+      route-target import vpn-ipv4 100:100
+      route-target export vpn-ipv4 100:100
+      neighbor 20.0.0.2 remote-as 2
+      !
+      address-family ipv4
+         neighbor 20.0.0.2 activate
+!
+router isis UNDERLAY
+   net 49.0001.0006.0006.0006.00
+   log-adjacency-changes
+   !
+   address-family ipv4 unicast
+   !
+   segment-routing mpls
+      no shutdown
+!
+end

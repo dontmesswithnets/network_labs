@@ -1,0 +1,130 @@
+CE-02#sh run
+Building configuration...
+
+Current configuration : 3328 bytes
+!
+! Last configuration change at 11:18:26 UTC Thu Nov 2 2023
+!
+version 15.6
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname CE-02
+!
+boot-start-marker
+boot-end-marker
+!
+!
+!
+no aaa new-model
+ethernet lmi ce
+!
+!
+!
+mmi polling-interval 60
+no mmi auto-configure
+no mmi pvc
+mmi snmp-timeout 180
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+ip cef
+no ipv6 cef
+!
+multilink bundle-name authenticated
+!
+!
+!
+!
+!
+redundancy
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface Loopback0
+ ip address 22.22.22.22 255.255.255.255
+!
+interface GigabitEthernet0/0
+ ip address 20.0.0.2 255.255.255.252
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/1
+ no ip address
+ shutdown
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/2
+ no ip address
+ shutdown
+ duplex auto
+ speed auto
+ media-type rj45
+!
+interface GigabitEthernet0/3
+ no ip address
+ shutdown
+ duplex auto
+ speed auto
+ media-type rj45
+!
+router bgp 2
+ bgp router-id 22.22.22.22
+ bgp log-neighbor-changes
+ neighbor 20.0.0.1 remote-as 100
+ !
+ address-family ipv4
+  redistribute connected route-map RM
+  neighbor 20.0.0.1 activate
+ exit-address-family
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+!
+!
+ip prefix-list LOOPBACK seq 5 permit 22.22.22.22/32
+!
+route-map RM permit 10
+ match ip address prefix-list LOOPBACK
+!
+!
+!
+control-plane
+!
+!
+line con 0
+line aux 0
+line vty 0 4
+ login
+ transport input none
+!
+no scheduler allocate
+!
+end
