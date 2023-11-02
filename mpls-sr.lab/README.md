@@ -24,7 +24,7 @@ ip routing
 mpls ip
 ```
 
-* настройка IS-IS
+### Настройка IS-IS
 
 ```
 router isis UNDERLAY
