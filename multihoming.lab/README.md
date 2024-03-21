@@ -86,7 +86,7 @@ _Рассмотрим, как route-type 4 решает проблемы с пе
 ### _Route-type 4_
 
 * Ethernet Segment route
-* один для всех EVI (EVPN instance)
+* один на каждый EVI (EVPN instance)
 * используется для обнаружения VTEP'ов, подключенных к одному ES (Ethernet Segment)
 * Используется для выбора DF (Designated Forwarder)
     * DF отвечает за BUM трафик в сторону ES
